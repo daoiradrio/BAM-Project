@@ -1,4 +1,4 @@
-from pmg import get_conventional_structure, UnitCell
+from main import get_conventional_structure, UnitCell
 from dash import Dash, dcc, html, Input, Output
 import plotly.graph_objs as go
 import numpy as np
