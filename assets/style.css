@@ -20,11 +20,9 @@ html, body{
 }
 
 #data-container{
-    /*height: 100%;
-    width: 24%;*/
+    height: 100%;
+    width: 24%;
     float: left;
     /*padding-bottom: 500em;
     margin-bottom: -500em;*/
-    height: 500px;
-    width: 250px;
 }

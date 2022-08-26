@@ -115,7 +115,7 @@ class UnitCell:
         self.coords += new_coords
 
         self.edges = []
-        """
+
         for node1, node2, data in self.structuregraph.graph.edges(data=True):
             a, b, c = data["to_jimage"]
             if a == 0 and b == 0 and c == 0:
@@ -144,6 +144,7 @@ class UnitCell:
                     if abs(d0 - d1) <= limit:
                         self.edges.append((start_coord, end_coord))
             # TODO: Müssen hier noch die anderen jeweils äquivalenten Atome durchgegangen werden, oder reicht das schon?
+        """
 
 
     def plot_cell(self):
@@ -204,14 +205,14 @@ class UnitCell:
             edge_y += [start_coord[1], end_coord[1], None]
             edge_z += [start_coord[2], end_coord[2], None]
         """
+
+        edge_data = []
         iter = 0
-        list = []
         for start, end in self.edges:
             edge_x += [start[0], end[0], None]
             edge_y += [start[1], end[1], None]
             edge_z += [start[2], end[2], None]
-            list += [iter, iter, None]
-            iter += 1
+
 
         trace0 = go.Scatter3d(
             x=axis_x,
@@ -242,7 +243,7 @@ class UnitCell:
             y=edge_y,
             z=edge_z,
             mode="lines",
-            customdata=list,
+            customdata=edge_data,
             hoverinfo="none",
             line=dict(color="black", width=2),
         )
@@ -786,7 +787,7 @@ def get_conventional_structure(dir: str, crystalsystem: str = None) -> Structure
 
 
 
-crystalsystem = "cubic"
+#crystalsystem = "cubic"
 #s = get_random_crystalsystem_example(crystalsystem)
 #sga = SpacegroupAnalyzer(s)
 #s = sga.get_conventional_standard_structure()
@@ -808,10 +809,7 @@ s = get_conventional_structure(dir)
 #sg = get_structure_graph(s, method="minimaldistance")
 
 cell = UnitCell(s)
-
-print(cell.testgraph.data)
-
-#cell.plot_cell()
+cell.plot_cell()
 #vecs = [
 #    [1, 1, 0, 0],
 #    [1, -1, 0, 0],
@@ -822,7 +820,3 @@ print(cell.testgraph.data)
 #]
 #cell.plot_extended_cell(vecs)
 #cell.plot_supercell(2)
-
-#fig = plot_structure_graph(sg)
-#fig = plotly_plot_structure_graph(sg)
-#fig.show()
