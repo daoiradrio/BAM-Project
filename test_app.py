@@ -171,6 +171,7 @@ app.layout = html.Div([
 )
 
 
+
 @app.callback(
     Output("bond_strength", "children"),
     Output("graph", "figure"),
@@ -178,38 +179,8 @@ app.layout = html.Div([
     Input("graph", "hoverData")
 )
 def edge_hoverevent(hover_data):
-    pass
-
-
-
-@app.callback(Output("bond_strength", "children"), Input("graph", "hoverData"))
-def show_edge_data(hoverData):
-    try:
-        data = hoverData["points"][0]["customdata"]
-    except:
-        data = "Keine Daten"
-    return data
-
-
-
-@app.callback(Output("graph", "figure"), Input("graph", "hoverData"))
-def highlight_trace(hover_data):
     global last_camera_position
-    for trace in fig.data:
-        if "customdata" in trace:
-            trace["line"]["width"] = 2
-    if hover_data:
-        if "customdata" in hover_data["points"][0]:
-            trace_index = hover_data["points"][0]["curveNumber"]
-            fig.data[trace_index]["line"]["width"] = 5
-            fig.data[trace_index]["opacity"] = 1
-    fig.update_layout(scene_camera=last_camera_position)
-    return fig
 
-
-
-@app.callback(Output("icohp-graph", "figure"), Input("graph", "hoverData"))
-def show_icohp_plot(hover_data):
     axis = dict(
         showbackground=False,
         showline=False,
@@ -245,15 +216,21 @@ def show_icohp_plot(hover_data):
 
     try:
         data = hover_data["points"][0]["customdata"]
-        cell.testgraph.update_traces(x=[1,2,3], y=[3,2,1])
+        cell.testgraph.update_traces(x=[1, 2, 3], y=[3, 2, 1])
     except:
-        pass
+        data = "Keine Daten"
 
-    # TODO: das in 'except' verschieben
-    #cell.testgraph.update_xaxes(visible=False)
-    #cell.testgraph.update_yaxes(visible=False)
+    for trace in fig.data:
+        if "customdata" in trace:
+            trace["line"]["width"] = 2
+    if hover_data:
+        if "customdata" in hover_data["points"][0]:
+            trace_index = hover_data["points"][0]["curveNumber"]
+            fig.data[trace_index]["line"]["width"] = 5
+            fig.data[trace_index]["opacity"] = 1
+    fig.update_layout(scene_camera=last_camera_position)
 
-    return cell.testgraph
+    return data, fig, cell.testgraph
 
 
 
