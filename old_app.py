@@ -5,18 +5,15 @@ import numpy as np
 
 
 
-def plot(cell: UnitCell) -> go.Figure:
-    atom_number = []
+def generate_plot():
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[1, 2, 3], y=[1, 2, 3], name="A", line={"width": 1}))
+    fig.add_trace(go.Scatter(x=[1, 2, 3], y=[1, 3, 5], name="B", line={"width": 1}))
+    return fig
 
-    node_x = []
-    node_y = []
-    node_z = []
 
-    axis_x = []
-    axis_y = []
-    axis_z = []
-    axes = []
 
+def plot_edges(cell: UnitCell) -> go.Figure:
     axis = dict(
         showbackground=False,
         showline=False,
@@ -34,34 +31,58 @@ def plot(cell: UnitCell) -> go.Figure:
             yaxis=dict(axis),
             zaxis=dict(axis),
         ),
-        margin=dict(
-            l=20,
-            r=20,
-            b=10,
-            t=10,
-        ),
+        margin=dict(t=100),
         hovermode="closest",
-        height=850
     )
 
     fig = go.Figure(layout=layout)
 
+    coords = cell.coords.copy()
     for start, end in cell.edges:
+        c_a = coords[start]
+        c_b = coords[end]
         fig.add_trace(
             go.Scatter3d(
-                x=[start[0], end[0], None],
-                y=[start[1], end[1], None],
-                z=[start[2], end[2], None],
+                x=[c_a[0], c_b[0]],
+                y=[c_a[1], c_b[1]],
+                z=[c_a[2], c_b[2]],
                 mode="lines",
                 line={
                     "width": 2,
                     "color": "black"
                 },
                 hoverinfo="none",
-                customdata=[1, 1, None]
             )
         )
+    return fig
 
+
+
+def plot_axes(cell: UnitCell):
+    axis = dict(
+        showbackground=False,
+        showline=False,
+        zeroline=False,
+        showgrid=False,
+        showticklabels=False,
+        title="",
+        showspikes=False
+    )
+
+    layout = go.Layout(
+        showlegend=False,
+        scene=dict(
+            xaxis=dict(axis),
+            yaxis=dict(axis),
+            zaxis=dict(axis),
+        ),
+        margin=dict(t=100),
+        hovermode="closest",
+    )
+
+    fig = go.Figure(layout=layout)
+
+    axes = []
     origin = np.array([0, 0, 0])
     axes.append((origin, cell.x_axis))
     axes.append((origin, cell.y_axis))
@@ -84,54 +105,31 @@ def plot(cell: UnitCell) -> go.Figure:
     # z-axis parallel in xy-direction
     axes.append((cell.x_axis + cell.y_axis, cell.x_axis + cell.y_axis + cell.z_axis))
 
-    for axis in axes:
-        start, end = axis
-        axis_x += [start[0], end[0], None]
-        axis_y += [start[1], end[1], None]
-        axis_z += [start[2], end[2], None]
-
-    axes_trace = go.Scatter3d(
-        x=axis_x,
-        y=axis_y,
-        z=axis_z,
-        mode="lines",
-        hoverinfo="none",
-        line=dict(color="grey", width=1)
-    )
-
-    fig.add_trace(axes_trace)
-
-    for i, coord in enumerate(cell.coords):
-        node_x.append(coord[0])
-        node_y.append(coord[1])
-        node_z.append(coord[2])
-        atom_number.append(cell.atoms[i]["number"])
-
-    node_trace = go.Scatter3d(
-        x=node_x,
-        y=node_y,
-        z=node_z,
-        mode="markers",
-        hoverinfo="none",
-        marker=dict(
-            symbol="circle",
-            size=6,
-            color=atom_number,
-            colorscale="Viridis",
-            line=dict(color="rgb(50,50,50)", width=0.5),
-        ),
-    )
-
-    fig.add_trace(node_trace)
+    for start, end in axes:
+        fig.add_trace(
+            go.Scatter3d(
+                x=[start[0], end[0]],
+                y=[start[1], end[1]],
+                z=[start[2], end[2]],
+                mode="lines",
+                line={
+                    "width": 1,
+                    "color": "grey"
+                },
+                hoverinfo="none",
+            )
+        )
 
     return fig
 
 
 
-dir = "mp-10143"
+dir = "mp-0"
 s = get_conventional_structure(dir)
 cell = UnitCell(s)
-fig = plot(cell)
+fig = cell.plot_cell()
+#fig_edges = plot_edges(cell)
+#fig_axes = plot_axes(cell)
 
 
 
@@ -148,39 +146,41 @@ app.layout = html.Div([
             style={"border": "2px black solid"},
         ),
         html.Div(
-            html.Pre(
-                id="helper"
-                ),
-        ),
-        html.Div(
-            html.Div([
+            html.Div(
                 dcc.Graph(
                     id="icohp-graph",
                     figure=cell.testgraph,
                 ),
-                html.Pre(
-                    id="bond_strength",
-                )
-            ]),
-            #id="icohp-graph-container",
+            ),
+            #html.Pre(
+            #    id="helper"
+            #),
             id="data-container",
             style={"border":" 2px black solid"},
         ),
+        #html.Div(
+        #    dcc.Graph(
+        #        id="icohp-graph",
+        #        figure=cell.testgraph,
+        #    ),
+        #    id="icohp-graph-container",
+        #),
     ],
     id="container",
 )
 
+#@app.callback(Output("helper", "children"), Input("graph", "hoverData"))
+#def show_edge_data(hoverData):
+#    try:
+#        data = hoverData["points"][0]["customdata"]
+#        return data
+#    except:
+#        #data = None
+#        return "Keine Daten"
+#    #return data
 
-
-@app.callback(
-    Output("bond_strength", "children"),
-    Output("graph", "figure"),
-    Output("icohp-graph", "figure"),
-    Input("graph", "hoverData")
-)
-def edge_hoverevent(hover_data):
-    global last_camera_position
-
+@app.callback(Output("icohp-graph", "figure"), Input("graph", "hoverData"))
+def show_icohp_plot(hover_data):
     axis = dict(
         showbackground=False,
         showline=False,
@@ -215,26 +215,20 @@ def edge_hoverevent(hover_data):
     cell.testgraph.add_trace(go.Scatter(x=[None], y=[None]))
 
     try:
+        print(hover_data)
         data = hover_data["points"][0]["customdata"]
-        cell.testgraph.update_traces(x=[1, 2, 3], y=[3, 2, 1])
+        cell.testgraph.update_traces(x=[1,2,3], y=[3,2,1])
     except:
-        data = "Keine Daten"
+        pass
 
-    for trace in fig.data:
-        if "customdata" in trace:
-            trace["line"]["width"] = 2
-    if hover_data:
-        if "customdata" in hover_data["points"][0]:
-            trace_index = hover_data["points"][0]["curveNumber"]
-            fig.data[trace_index]["line"]["width"] = 5
-            fig.data[trace_index]["opacity"] = 1
-    fig.update_layout(scene_camera=last_camera_position)
+    # TODO: das in 'except' verschieben
+    #cell.testgraph.update_xaxes(visible=False)
+    #cell.testgraph.update_yaxes(visible=False)
 
-    return data, fig, cell.testgraph
+    return cell.testgraph
 
-
-
-@app.callback(Output("helper", "children"), Input("graph", "relayoutData"))
+"""
+@app.callback(Output("helper", "children"), Input("edges", "relayoutData"))
 def get_current_camera_position(layout_data):
     global last_camera_position
     last_camera_position = dict()
@@ -257,10 +251,27 @@ def get_current_camera_position(layout_data):
             )
         except:
             pass
+    else:
+        pass
     return None
+"""
 
-
+"""
+@app.callback(Output("edges", "figure"), Input("edges", "hoverData"))
+def highlight_trace(hover_data):
+    global last_camera_position
+    # here you set the default settings
+    for trace in fig_edges.data:
+        trace["line"]["width"] = 1
+        trace["opacity"] = 0.5
+    if hover_data:
+        trace_index = hover_data["points"][0]["curveNumber"]
+        fig_edges.data[trace_index]["line"]["width"] = 5
+        fig_edges.data[trace_index]["opacity"] = 1
+    fig_edges.update_layout(scene_camera=last_camera_position)
+    return fig_edges
+"""
 
 if __name__ == '__main__':
-    global last_camera_position
+    #global last_camera_position
     app.run_server(debug=True)
