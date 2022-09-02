@@ -1,11 +1,14 @@
 import os
 import warnings
+import random
+
 import numpy as np
 import plotly.graph_objs as go
+
 from lobsterpy.structuregraph.graph import LobsterGraph
 from itertools import product, permutations
 from pymatgen.analysis.structure_analyzer import SpacegroupAnalyzer
-from main import UnitCell
+from sklearn.neighbors import NearestNeighbors
 
 
 
@@ -79,7 +82,6 @@ def create_plot(structuregraph: LobsterGraph):
     number_individual_atoms = len(frac_coords)
     cart_crystal_axis_mat = np.stack((x, y, z), axis=-1)
     atoms = dict()
-    eq_atoms = dict()
     new_coords = []
     frac_coords = list(structure.frac_coords.copy())
     new_frac_coords = frac_coords.copy()
@@ -88,7 +90,6 @@ def create_plot(structuregraph: LobsterGraph):
         atoms[i] = dict()
         atoms[i]["element"] = structure[i].specie
         atoms[i]["number"] = structure[i].specie.number
-        eq_atoms[i] = []
         indices0 = []
         indices1 = []
         for j, c in enumerate(coord):
@@ -128,49 +129,46 @@ def create_plot(structuregraph: LobsterGraph):
                 atoms[m] = dict()
                 atoms[m]["element"] = structure[i].specie
                 atoms[m]["number"] = structure[i].specie.number
-                eq_atoms[i].append(m)
     coords += new_coords
     frac_coords += new_frac_coords
+
+    #***#
+    nodes = []
+    elements = dict()
+    edges = []
+    for node in structuregraph.sg.graph.nodes.data():
+        element = node[1]["specie"]
+        coord_env = node[1]["properties"]["env"]
+        nodes.append({"element": element, "coordination_environment": coord_env,})
+        elements[element] = []
+    for i, coord in enumerate(coords):
+        element = atoms[i]["element"]
+        element = str(element)
+        elements[element].append(coord)
+    for node1, node2, data in structuregraph.sg.graph.edges.data():
+        element1 = atoms[node1]["element"]
+        element1 = str(element1)
+        env1 = nodes[node1]["coordination_environment"]
+        env1 = int(env1[-1]) # das ist nicht im allgemeinen nötig
+        for coord in elements[element1]:
+            element2 = nodes[node2]["element"]
+            #env2 = atoms[node2]["coordination_environment"]
+            #env2 = int(env2[-1]) # das ist nicht im allgemeinen nötig
+            vec = elements[element2].copy()
+            vec.append(coord)
+            vec = np.stack(vec)
+            knn = NearestNeighbors(n_neighbors=env1+1)
+            knn.fit(vec)
+            distance_mat, neighbours_mat = knn.kneighbors(vec)
+            for neighbor in neighbours_mat[-1][1:]:
+                edges.append((coord, elements[element2][neighbor]))
+    #***#
 
     for i, coord in enumerate(coords):
         node_x.append(coord[0])
         node_y.append(coord[1])
         node_z.append(coord[2])
         atom_number.append(atoms[i]["number"])
-
-    limit = 0.01
-    for node1, node2, data in structuregraph.sg.graph.edges.data():
-        #start = frac_coords[node1]
-        #end = frac_coords[node2] + data["to_jimage"]
-        start = structuregraph.sg.structure.frac_coords[node1]
-        end = structuregraph.sg.structure.frac_coords[node2] + data["to_jimage"]
-        start_coord = np.dot(cart_crystal_axis_mat, start)
-        end_coord = np.dot(cart_crystal_axis_mat, end)
-        d0 = np.linalg.norm(start_coord - end_coord)
-        if (-limit <= end[0] <= limit + 1) and \
-                (-limit <= end[1] <= limit + 1) and \
-                (-limit <= end[2] <= limit + 1):
-            edges.append((start_coord, end_coord))
-        for eq_atom1 in eq_atoms[node1]:
-            shift = frac_coords[eq_atom1] - frac_coords[node1]
-            new_end = end + shift
-            if (-limit <= new_end[0] <= limit + 1) and \
-                    (-limit <= new_end[1] <= limit + 1) and \
-                    (-limit <= new_end[2] <= limit + 1):
-                start_coord = coords[eq_atom1]
-                end_coord = np.dot(cart_crystal_axis_mat, new_end)
-                d1 = np.linalg.norm(start_coord - end_coord)
-                if abs(d0 - d1) <= limit:
-                    edges.append((start_coord, end_coord))
-
-    """
-    for start, end in self.edges:
-        start_coord = self.coords[start]
-        end_coord = self.coords[end]
-        edge_x += [start_coord[0], end_coord[0], None]
-        edge_y += [start_coord[1], end_coord[1], None]
-        edge_z += [start_coord[2], end_coord[2], None]
-    """
 
     for start, end in edges:
         edge_x += [start[0], end[0], None]
@@ -264,14 +262,21 @@ def create_plot(structuregraph: LobsterGraph):
 
     fig.add_trace(node_trace)
 
-    return fig
+    #return fig
+    fig.show()
 
 
 
 warnings.filterwarnings(action='ignore')
 
-dir = "mp-10143/"
-path = os.path.join(os.path.expanduser("~/automationresults"), dir)
+#dir = "mp-10143/"
+#crystalsystem = "cubic"
+filepath = os.path.expanduser("~/automationresults")
+mps = os.listdir(filepath)
+rand_index = random.randrange(len(mps))
+dir = mps[rand_index]
+path = os.path.join(filepath, dir)
+#path = os.path.join(os.path.expanduser("~/RAW_files_phonon/"), crystalsystem, dir)
 path_to_poscar = os.path.join(path, "POSCAR")
 path_to_charge = os.path.join(path, "CHARGE.lobster")
 path_to_icobilist = os.path.join(path, "ICOBILIST.lobster")
@@ -280,6 +285,7 @@ path_to_icohplist = os.path.join(path, "ICOHPLIST.lobster")
 path_to_cohpcar = os.path.join(path, "COHPCAR.lobster")
 path_to_madelung = os.path.join(path, "MadelungEnergies.lobster")
 
+print("hier0")
 testgraph = LobsterGraph(
     path_to_poscar=path_to_poscar,
     path_to_charge=path_to_charge,
@@ -293,7 +299,9 @@ testgraph = LobsterGraph(
     add_additional_data_sg=True
 )
 
+print("hier1")
 plotfig = create_plot(testgraph)
+print("hier2")
 
 #for item in testgraph.sg.graph.edges.data():
 #    print(item)
@@ -307,14 +315,12 @@ plotfig = create_plot(testgraph)
 #s = sga.get_conventional_standard_structure()
 #print(s.frac_coords)
 
+for item in testgraph.sg.graph.nodes.data():
+    element = item[1]["specie"]
+    coordination_environment = item[1]["properties"]["env"]
+    #print(f"Element {element}, Coordination Environment {coordination_environment}")
+
 structure = testgraph.sg.structure
 sga = SpacegroupAnalyzer(structure)
-cell = UnitCell(sga.get_conventional_standard_structure())
-cell.plot_extended_cell([
-    #[1,1,0,0],
-    #[1,-1,0,0],
-    #[1,0,1,0],
-    #[1,0,-1,0],
-    #[1,0,0,1],
-    #[1,0,0,-1]
-])
+structure = sga.get_conventional_standard_structure()
+

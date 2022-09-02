@@ -61,18 +61,11 @@ def plot(cell: UnitCell) -> go.Figure:
                     "color": "black"
                 },
                 hoverinfo="none",
-                #customdata={
-                #    "bonding_length": i,
-                #    "ICOBI": i,
-                #    "ICOOP": i,
-                #    "ICOHP": i,
-                #    "ICOHP_bonding_perc": i
-                #}
                 customdata=(
-                    (i, i, i, i, i),
-                    (i, i, i, i, i),
+                    (i, i, i, i, i), # bonding_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc
+                    (i, i, i, i, i), # bonding_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc
                     None
-                )  # bonding_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc
+                )
             )
         )
 
