@@ -1,3 +1,7 @@
+*{
+    box-sizing: border-box;
+}
+
 html, body{
     margin-top: 5px;
     margin-bottom: 5px;
@@ -7,22 +11,42 @@ html, body{
     width: 99%;
 }
 
+.container-class{
+    border-radius: 2.5%;
+    border: 2px black solid;
+}
+
 #container{
     height: 100%;
     width: 100%;
     /*overflow: hidden;*/
 }
 
-#graph-container{
+#structuregraph-container{
     height: 100%;
     width: 74%;
     float: right;
+}
+
+#plot-container{
+    height: 100%;
+    width: 24%;
+    float: left;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 25px;
+    padding-bottom: 25px;
+    margin-bottom: 10px;
 }
 
 #data-container{
     height: 100%;
     width: 24%;
     float: left;
-    /*padding-bottom: 500em;
-    margin-bottom: -500em;*/
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 25px;
+    padding-bottom: 25px;
+    text-align: center;
+    margin-top: 10px;
 }

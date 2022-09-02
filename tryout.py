@@ -5,6 +5,7 @@ import plotly.graph_objs as go
 from lobsterpy.structuregraph.graph import LobsterGraph
 from itertools import product, permutations
 from pymatgen.analysis.structure_analyzer import SpacegroupAnalyzer
+from main import UnitCell
 
 
 
@@ -294,10 +295,26 @@ testgraph = LobsterGraph(
 
 plotfig = create_plot(testgraph)
 
-for item in testgraph.sg.graph.edges.data():
-    print(item)
-    print()
+#for item in testgraph.sg.graph.edges.data():
+#    print(item)
+#    print()
 
-sga = SpacegroupAnalyzer(testgraph.sg.structure)
-s = sga.get_conventional_standard_structure()
-print(s)
+#print(testgraph.sg.structure.frac_coords)
+
+#print()
+
+#sga = SpacegroupAnalyzer(testgraph.sg.structure)
+#s = sga.get_conventional_standard_structure()
+#print(s.frac_coords)
+
+structure = testgraph.sg.structure
+sga = SpacegroupAnalyzer(structure)
+cell = UnitCell(sga.get_conventional_standard_structure())
+cell.plot_extended_cell([
+    #[1,1,0,0],
+    #[1,-1,0,0],
+    #[1,0,1,0],
+    #[1,0,-1,0],
+    #[1,0,0,1],
+    #[1,0,0,-1]
+])

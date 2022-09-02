@@ -48,7 +48,8 @@ def plot(cell: UnitCell) -> go.Figure:
 
     fig = go.Figure(layout=layout)
 
-    for start, end in cell.edges:
+    for i, edge in enumerate(cell.edges):
+        start, end = edge
         fig.add_trace(
             go.Scatter3d(
                 x=[start[0], end[0], None],
@@ -60,7 +61,18 @@ def plot(cell: UnitCell) -> go.Figure:
                     "color": "black"
                 },
                 hoverinfo="none",
-                customdata=[1, 1, None]
+                #customdata={
+                #    "bonding_length": i,
+                #    "ICOBI": i,
+                #    "ICOOP": i,
+                #    "ICOHP": i,
+                #    "ICOHP_bonding_perc": i
+                #}
+                customdata=(
+                    (i, i, i, i, i),
+                    (i, i, i, i, i),
+                    None
+                )  # bonding_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc
             )
         )
 
@@ -133,8 +145,8 @@ def plot(cell: UnitCell) -> go.Figure:
 dir = "mp-10143"
 s = get_conventional_structure(dir)
 cell = UnitCell(s)
-fig = plot(cell)
-#fig = plotfig
+#fig = plot(cell)
+fig = plotfig
 
 
 
@@ -143,31 +155,71 @@ app = Dash(__name__)
 app.layout = html.Div([
         html.Div(
             dcc.Graph(
-                id="graph",
+                id="structuregraph",
                 figure=fig,
                 clear_on_unhover=True,
             ),
-            id="graph-container",
-            style={"border": "2px black solid"},
+            className="container-class",
+            id="structuregraph-container",
         ),
         html.Div(
             html.Pre(
                 id="helper"
-                ),
+            ),
         ),
         html.Div(
-            html.Div([
-                dcc.Graph(
-                    id="icohp-graph",
-                    figure=cell.testgraph,
-                ),
-                html.Pre(
-                    id="bond_strength",
-                )
+            dcc.Graph(
+                id="plot",
+                figure=cell.testgraph,
+            ),
+            className="container-class",
+            id="plot-container",
+        ),
+        html.Div(
+            html.Table([
+                html.Tr([
+                    html.Td(
+                        "Bond Length"
+                    ),
+                    html.Td(
+                        id="bond_length"
+                    )
+                ]),
+                html.Tr([
+                    html.Td(
+                        "ICOBI"
+                    ),
+                    html.Td(
+                        id="ICOBI"
+                    )
+                ]),
+                html.Tr([
+                    html.Td(
+                        "ICOOP"
+                    ),
+                    html.Td(
+                        id="ICOOP"
+                    )
+                ]),
+                html.Tr([
+                    html.Td(
+                        "ICOHP"
+                    ),
+                    html.Td(
+                        id="ICOHP"
+                    )
+                ]),
+                html.Tr([
+                    html.Td(
+                        "ICOHP Bonding Perc"
+                    ),
+                    html.Td(
+                        id="ICOHP_bonding_perc"
+                    )
+                ]),
             ]),
-            #id="icohp-graph-container",
+            className="container-class",
             id="data-container",
-            style={"border":" 2px black solid"},
         ),
     ],
     id="container",
@@ -176,10 +228,14 @@ app.layout = html.Div([
 
 
 @app.callback(
-    Output("bond_strength", "children"),
-    Output("graph", "figure"),
-    Output("icohp-graph", "figure"),
-    Input("graph", "hoverData")
+    Output("bond_length", "children"),
+    Output("ICOBI", "children"),
+    Output("ICOOP", "children"),
+    Output("ICOHP", "children"),
+    Output("ICOHP_bonding_perc", "children"),
+    Output("structuregraph", "figure"),
+    Output("plot", "figure"),
+    Input("structuregraph", "hoverData")
 )
 def edge_hoverevent(hover_data):
     global last_camera_position
@@ -208,20 +264,26 @@ def edge_hoverevent(hover_data):
             b=10,
             t=10,
         ),
-        xaxis=dict(visible=False), # TODO: muss am Ende entfernt werden
-        yaxis=dict(visible=False), # TODO: muss am Ende entfern werden
-        height=250,
-        width=250,
+        #xaxis=dict(visible=False), # TODO: muss am Ende entfernt werden
+        #yaxis=dict(visible=False), # TODO: muss am Ende entfern werden
+        height=300,
+        width=430,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
     )
 
     cell.testgraph = go.Figure(layout=layout)
-    cell.testgraph.add_trace(go.Scatter(x=[None], y=[None]))
+    cell.testgraph.add_trace(go.Scatter(x=[None], y=[None], line=dict(color="red")))
 
     try:
-        data = hover_data["points"][0]["customdata"]
-        cell.testgraph.update_traces(x=[1, 2, 3], y=[3, 2, 1])
+        bond_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc = hover_data["points"][0]["customdata"]
+        cell.testgraph.update_traces(x=[1, 2, 3], y=[1, 2, 3])
     except:
-        data = "Keine Daten"
+        bond_length = "Keine Daten"
+        ICOBI = "Keine Daten"
+        ICOOP = "Keine Daten"
+        ICOHP = "Keine Daten"
+        ICOHP_bonding_perc = "Keine Daten"
 
     for trace in fig.data:
         if "customdata" in trace:
@@ -233,11 +295,11 @@ def edge_hoverevent(hover_data):
             fig.data[trace_index]["opacity"] = 1
     fig.update_layout(scene_camera=last_camera_position)
 
-    return data, fig, cell.testgraph
+    return bond_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc, fig, cell.testgraph
 
 
 
-@app.callback(Output("helper", "children"), Input("graph", "relayoutData"))
+@app.callback(Output("helper", "children"), Input("structuregraph", "relayoutData"))
 def get_current_camera_position(layout_data):
     global last_camera_position
     last_camera_position = dict()

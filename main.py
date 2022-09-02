@@ -206,7 +206,7 @@ class UnitCell:
             edge_z += [start_coord[2], end_coord[2], None]
         """
 
-        edge_data = []
+        edge_data = dict()
         iter = 0
         for start, end in self.edges:
             edge_x += [start[0], end[0], None]
@@ -243,7 +243,7 @@ class UnitCell:
             y=edge_y,
             z=edge_z,
             mode="lines",
-            customdata=edge_data,
+            customdata=None,
             hoverinfo="none",
             line=dict(color="black", width=2),
         )
@@ -282,7 +282,7 @@ class UnitCell:
         data.append(trace2)
 
         fig = go.Figure(data=data, layout=layout)
-        #fig.show()
+        fig.show()
         return fig
 
 
@@ -803,13 +803,13 @@ def get_conventional_structure(dir: str, crystalsystem: str = None) -> Structure
 #s = get_conventional_structure(dir, crystalsystem)
 
 #dir = "mp-10143/"
-dir = "mp-0/"
-s = get_conventional_structure(dir)
+#dir = "mp-0/"
+#s = get_conventional_structure(dir)
 
 #sg = get_structure_graph(s, method="minimaldistance")
 
-cell = UnitCell(s)
-cell.plot_cell()
+#cell = UnitCell(s)
+#cell.plot_cell()
 #vecs = [
 #    [1, 1, 0, 0],
 #    [1, -1, 0, 0],
