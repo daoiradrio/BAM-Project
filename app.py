@@ -145,8 +145,8 @@ def plot(cell: UnitCell) -> go.Figure:
 dir = "mp-10143"
 s = get_conventional_structure(dir)
 cell = UnitCell(s)
-#fig = plot(cell)
-fig = plotfig
+fig = plot(cell)
+#fig = plotfig
 
 
 
