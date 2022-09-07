@@ -9,7 +9,7 @@ from itertools import product, permutations
 
 
 
-def create_plot(structuregraph: LobsterGraph):
+def create_plot(lobstergraph: LobsterGraph):
     atom_number = []
 
     node_x = []
@@ -24,7 +24,7 @@ def create_plot(structuregraph: LobsterGraph):
 
     edges = []
 
-    structure = structuregraph.sg.structure
+    structure = lobstergraph.sg.structure
 
     a = structure.lattice.a
     b = structure.lattice.b
@@ -67,10 +67,10 @@ def create_plot(structuregraph: LobsterGraph):
 
     cart_crystal_axis_mat = np.stack((x, y, z), axis=-1)
 
-    for node1, node2, data in structuregraph.sg.graph.edges.data():
-        frac_coord1 = structuregraph.sg.structure.frac_coords[node1]
+    for node1, node2, data in lobstergraph.sg.graph.edges.data():
+        frac_coord1 = lobstergraph.sg.structure.frac_coords[node1]
         coord1 = np.dot(cart_crystal_axis_mat, frac_coord1)
-        frac_coord2 = structuregraph.sg.structure.frac_coords[node2] + data["to_jimage"]
+        frac_coord2 = lobstergraph.sg.structure.frac_coords[node2] + data["to_jimage"]
         coord2 = np.dot(cart_crystal_axis_mat, frac_coord2)
         edges.append((coord1, coord2))
 
@@ -129,17 +129,50 @@ def create_plot(structuregraph: LobsterGraph):
     coords += new_coords
     frac_coords += new_frac_coords
 
+    #***#
+    """
+    data = list(lobstergraph.sg.graph.edges.data())
+    vec = data[0][2]
+    xyz = [(vec["to_jimage"][i],)*2 for i in range(3)]
+    for _, _, vec in data:
+        vec = vec["to_jimage"]
+        for i, (min, max) in enumerate(xyz):
+            if vec[i] < min:
+                min = vec[i]
+            if vec[i] > max:
+                max = vec[i]
+            xyz[i] = (min, max)
+    """
+    data = list(lobstergraph.sg.graph.edges.data())
+
+    xs = [vec["to_jimage"][0] for _, _, vec in data]
+    x_min = min(xs)
+    x_max = max(xs)
+
+    ys = [vec["to_jimage"][1] for _, _, vec in data]
+    y_min = min(ys)
+    y_max = max(ys)
+
+    zs = [vec["to_jimage"][2] for _, _, vec in data]
+    z_min = min(zs)
+    z_max = max(zs)
+
+    for i, (dim_min, dim_max) in enumerate([(x_min, x_max), (y_min, y_max), (z_min, z_max)]):
+        pass
+
+    #***#
+
     new_frac_coords = []
     new_edges = []
     new_axes = []
     j = len(frac_coords)
     ###
-    shifts = [data["to_jimage"] for _, _, data in structuregraph.sg.graph.edges.data()]
+    shifts = [data["to_jimage"] for _, _, data in lobstergraph.sg.graph.edges.data()]
     shifts += [np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 0, 1])]
     ###
-    #for _, _, data in structuregraph.sg.graph.edges.data():
-    for vec in shifts:
+    #for _, _, data in lobstergraph.sg.graph.edges.data():
         #vec = data["to_jimage"]
+    for vec in shifts:
         for i, frac_coord in enumerate(frac_coords):
             new_frac_coord = frac_coord + vec
             new_frac_coords.append(new_frac_coord)
@@ -249,7 +282,7 @@ def create_plot(structuregraph: LobsterGraph):
     fig.add_trace(node_trace)
 
     #return fig
-    fig.show()
+    #fig.show()
 
 
 

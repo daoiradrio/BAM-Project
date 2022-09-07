@@ -16,6 +16,7 @@ path_to_icohplist = os.path.join(path, "ICOHPLIST.lobster")
 path_to_cohpcar = os.path.join(path, "COHPCAR.lobster")
 path_to_madelung = os.path.join(path, "MadelungEnergies.lobster")
 
+"""
 lgo = LobsterGraph(
     path_to_poscar=path_to_poscar,
     path_to_charge=path_to_charge,
@@ -28,3 +29,4 @@ lgo = LobsterGraph(
     #start=-2,
     add_additional_data_sg=True
 )
+"""
