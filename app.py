@@ -3,10 +3,12 @@ from dash import Dash, dcc, html, Input, Output
 import plotly.graph_objs as go
 import numpy as np
 
-#from tryout import plotfig
+#from tryout2 import lgo, Cell
+from typing import Union
 
 
 
+#def plot(cell: Union[UnitCell, Cell]) -> go.Figure:
 def plot(cell: UnitCell) -> go.Figure:
     atom_number = []
 
@@ -43,7 +45,7 @@ def plot(cell: UnitCell) -> go.Figure:
             t=10,
         ),
         hovermode="closest",
-        height=850
+        #height=850
     )
 
     fig = go.Figure(layout=layout)
@@ -139,19 +141,23 @@ dir = "mp-10143"
 s = get_conventional_structure(dir)
 cell = UnitCell(s)
 fig = plot(cell)
-#fig = plotfig
 
+#cell = Cell(lgo)
+#fig = plot(cell)
 
 
 app = Dash(__name__)
 
 app.layout = html.Div([
         html.Div(
-            dcc.Graph(
-                id="structuregraph",
-                figure=fig,
-                clear_on_unhover=True,
-            ),
+            html.Div( # dieser Hilfscontainer wird nur benötigt, wenn alle Container sichtbare runde Ränder haben
+                dcc.Graph(
+                    id="structuregraph",
+                    figure=fig,
+                    clear_on_unhover=True,
+                ),
+                id="helper-container",
+            ), # siehe Kommentar über diesem
             className="container-class",
             id="structuregraph-container",
         ),
@@ -172,42 +178,52 @@ app.layout = html.Div([
             html.Table([
                 html.Tr([
                     html.Td(
-                        "Bond Length"
+                        "Bond Length",
+                        className="property-name"
                     ),
                     html.Td(
-                        id="bond_length"
+                        id="bond_length",
+                        className="property-data"
                     )
                 ]),
                 html.Tr([
                     html.Td(
-                        "ICOBI"
+                        "ICOBI",
+                        className="property-name"
                     ),
                     html.Td(
-                        id="ICOBI"
+                        id="ICOBI",
+                        className = "property-data"
                     )
                 ]),
                 html.Tr([
                     html.Td(
-                        "ICOOP"
+                        "ICOOP",
+                        className="property-name"
                     ),
                     html.Td(
-                        id="ICOOP"
+                        id="ICOOP",
+                        className="property-data"
                     )
                 ]),
                 html.Tr([
                     html.Td(
-                        "ICOHP"
+                        "ICOHP",
+                        className="property-name"
                     ),
                     html.Td(
-                        id="ICOHP"
+                        id="ICOHP",
+                        className="property-data"
                     )
                 ]),
                 html.Tr([
                     html.Td(
-                        "ICOHP Bonding Perc"
+                        "ICOHP Bonding Perc",
+                        className="property-name"
                     ),
                     html.Td(
-                        id="ICOHP_bonding_perc"
+                        id="ICOHP_bonding_perc",
+                        className="property-data"
                     )
                 ]),
             ]),
@@ -272,11 +288,11 @@ def edge_hoverevent(hover_data):
         bond_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc = hover_data["points"][0]["customdata"]
         cell.testgraph.update_traces(x=[1, 2, 3], y=[1, 2, 3])
     except:
-        bond_length = "Keine Daten"
-        ICOBI = "Keine Daten"
-        ICOOP = "Keine Daten"
-        ICOHP = "Keine Daten"
-        ICOHP_bonding_perc = "Keine Daten"
+        bond_length = "-"
+        ICOBI = "-"
+        ICOOP = "-"
+        ICOHP = "-"
+        ICOHP_bonding_perc = "-"
 
     for trace in fig.data:
         if "customdata" in trace:

@@ -3,12 +3,20 @@
 }
 
 html, body{
-    margin-top: 5px;
-    margin-bottom: 5px;
-    margin-right: 5px;
-    margin-left: 5px;
-    height: 99%;
-    width: 99%;
+    /*margin-top: 0px;
+    margin-bottom: 0px;
+    margin-right: 0px;
+    margin-left: 0px;*/
+    margin: auto;
+    /*margin-top: 5px;*/
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+table{
+    border-spacing: 50px;
+    font-family: "Courier New";
 }
 
 .container-class{
@@ -16,20 +24,38 @@ html, body{
     border: 2px black solid;
 }
 
+.property-name{
+    text-align: left;
+}
+
+.property-data{
+    text-align: right;
+}
+
 #container{
     height: 100%;
     width: 100%;
-    /*overflow: hidden;*/
+}
+
+#helper-container{
+    padding: 15px;
+}
+
+#structuregraph{
+    width: 100%;
+    height: 820px;
 }
 
 #structuregraph-container{
     height: 100%;
     width: 74%;
     float: right;
+    margin-right: 10px;
+    margin-left: 5px;
 }
 
 #plot-container{
-    height: 100%;
+    height: 50%;
     width: 24%;
     float: left;
     padding-left: 10px;
@@ -37,16 +63,20 @@ html, body{
     padding-top: 25px;
     padding-bottom: 25px;
     margin-bottom: 10px;
+    margin-right: 5px;
+    margin-left: 10px;
 }
 
 #data-container{
-    height: 100%;
+    height: 50%;
     width: 24%;
     float: left;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 30px;
+    padding-right: 5px;
     padding-top: 25px;
-    padding-bottom: 25px;
+    padding-bottom: 45px;
     text-align: center;
     margin-top: 10px;
+    margin-right: 5px;
+    margin-left: 10px;
 }

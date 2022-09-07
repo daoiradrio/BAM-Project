@@ -115,12 +115,6 @@ class UnitCell:
         self.coords += new_coords
 
         self.edges = []
-
-        for node1, node2, data in self.structuregraph.graph.edges(data=True):
-            a, b, c = data["to_jimage"]
-            if a == 0 and b == 0 and c == 0:
-                self.edges.append((self.coords[node1], self.coords[node2]))
-        """
         limit = 0.01
         for node1, node2, data in self.structuregraph.graph.edges(data=True):
             start = self.frac_coords[node1]
@@ -144,7 +138,6 @@ class UnitCell:
                     if abs(d0 - d1) <= limit:
                         self.edges.append((start_coord, end_coord))
             # TODO: Müssen hier noch die anderen jeweils äquivalenten Atome durchgegangen werden, oder reicht das schon?
-        """
 
 
     def plot_cell(self):
@@ -197,17 +190,13 @@ class UnitCell:
             node_z.append(coord[2])
             atom_number.append(self.atoms[i]["number"])
 
-        """
-        for start, end in self.edges:
-            start_coord = self.coords[start]
-            end_coord = self.coords[end]
-            edge_x += [start_coord[0], end_coord[0], None]
-            edge_y += [start_coord[1], end_coord[1], None]
-            edge_z += [start_coord[2], end_coord[2], None]
-        """
+        #for start, end in self.edges:
+        #    start_coord = self.coords[start]
+        #    end_coord = self.coords[end]
+        #    edge_x += [start_coord[0], end_coord[0], None]
+        #    edge_y += [start_coord[1], end_coord[1], None]
+        #    edge_z += [start_coord[2], end_coord[2], None]
 
-        edge_data = dict()
-        iter = 0
         for start, end in self.edges:
             edge_x += [start[0], end[0], None]
             edge_y += [start[1], end[1], None]
@@ -282,8 +271,8 @@ class UnitCell:
         data.append(trace2)
 
         fig = go.Figure(data=data, layout=layout)
-        fig.show()
-        return fig
+        #fig.show()
+        #return fig
 
 
     def plot_extended_cell(self, add_cells = None) -> None:
@@ -802,9 +791,10 @@ def get_conventional_structure(dir: str, crystalsystem: str = None) -> Structure
 #dir = "mp-29398"
 #s = get_conventional_structure(dir, crystalsystem)
 
-#dir = "mp-10143/"
+dir = "mp-10143/"
 #dir = "mp-0/"
 #s = get_conventional_structure(dir)
+s = get_structure(dir)
 
 #sg = get_structure_graph(s, method="minimaldistance")
 
