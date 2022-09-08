@@ -1,4 +1,5 @@
 import os
+import random
 import warnings
 
 import numpy as np
@@ -10,6 +11,8 @@ from itertools import product, permutations
 
 
 def create_plot(lobstergraph: LobsterGraph):
+    cells = []
+
     atom_number = []
 
     node_x = []
@@ -67,17 +70,26 @@ def create_plot(lobstergraph: LobsterGraph):
 
     cart_crystal_axis_mat = np.stack((x, y, z), axis=-1)
 
+    """
+    tol = 0.01
     for node1, node2, data in lobstergraph.sg.graph.edges.data():
         frac_coord1 = lobstergraph.sg.structure.frac_coords[node1]
-        coord1 = np.dot(cart_crystal_axis_mat, frac_coord1)
+        #coord1 = np.dot(cart_crystal_axis_mat, frac_coord1)
         frac_coord2 = lobstergraph.sg.structure.frac_coords[node2] + data["to_jimage"]
-        coord2 = np.dot(cart_crystal_axis_mat, frac_coord2)
-        edges.append((coord1, coord2))
+        #coord2 = np.dot(cart_crystal_axis_mat, frac_coord2)
+        if (-tol <= frac_coord2[0] <= 1+tol) and \
+           (-tol <= frac_coord2[1] <= 1+tol) and \
+           (-tol <= frac_coord2[2] <= 1+tol):
+            coord1 = np.dot(cart_crystal_axis_mat, frac_coord1)
+            coord2 = np.dot(cart_crystal_axis_mat, frac_coord2)
+            edges.append((coord1, coord2))
+    """
 
     new_coords = []
     frac_coords = []
     new_frac_coords = []
     atoms = dict()
+    eq_atoms = dict()
     k = len(structure.frac_coords)
     for i, frac_coord in enumerate(structure.frac_coords.copy()):
         frac_coords.append(frac_coord)
@@ -85,8 +97,9 @@ def create_plot(lobstergraph: LobsterGraph):
         coords.append(coord)
         atoms[i] = {
             "element": str(structure[i].specie),
-            "number": structure[i].specie.number
+            "number": structure[i].specie.number,
         }
+        eq_atoms[i] = []
         indices0 = []
         indices1 = []
         for j, c in enumerate(frac_coord):
@@ -117,7 +130,7 @@ def create_plot(lobstergraph: LobsterGraph):
         adds = product(add0, add1)
         for a0, a1 in adds:
             if np.linalg.norm(a0 + a1) > 0:
-                new_frac_coord = frac_coord.copy() + a0 + a1
+                new_frac_coord = frac_coord + a0 + a1
                 new_frac_coords.append(new_frac_coord)
                 new_coord = np.dot(cart_crystal_axis_mat, new_frac_coord)
                 new_coords.append(new_coord)
@@ -125,23 +138,33 @@ def create_plot(lobstergraph: LobsterGraph):
                     "element": str(structure[i].specie),
                     "number": structure[i].specie.number
                 }
+                eq_atoms[i].append(k)
                 k += 1
     coords += new_coords
     frac_coords += new_frac_coords
+    cells.append(coords)
 
-    #***#
-    """
-    data = list(lobstergraph.sg.graph.edges.data())
-    vec = data[0][2]
-    xyz = [(vec["to_jimage"][i],)*2 for i in range(3)]
-    for _, _, vec in data:
-        vec = vec["to_jimage"]
-        for i, (min, max) in enumerate(xyz):
-            if vec[i] < min:
-                min = vec[i]
-            if vec[i] > max:
-                max = vec[i]
-            xyz[i] = (min, max)
+    tol = 0.01
+    for node1, node2, data in lobstergraph.sg.graph.edges.data():
+        frac_coord1 = lobstergraph.sg.structure.frac_coords[node1]
+        frac_coord2 = lobstergraph.sg.structure.frac_coords[node2] + data["to_jimage"]
+        if (-tol <= frac_coord2[0] <= 1+tol) and \
+           (-tol <= frac_coord2[1] <= 1+tol) and \
+           (-tol <= frac_coord2[2] <= 1+tol):
+            coord1 = np.dot(cart_crystal_axis_mat, frac_coord1)
+            coord2 = np.dot(cart_crystal_axis_mat, frac_coord2)
+            edges.append((coord1, coord2))
+        for eq_atom1 in eq_atoms[node1]:
+            start = frac_coords[eq_atom1]
+            shift = start - frac_coord1
+            end = frac_coord2 + shift
+            if (-tol <= end[0] <= 1+tol) and \
+               (-tol <= end[1] <= 1+tol) and \
+               (-tol <= end[2] <= 1+tol):
+                start = np.dot(cart_crystal_axis_mat, start)
+                end = np.dot(cart_crystal_axis_mat, end)
+                edges.append((start, end))
+
     """
     data = list(lobstergraph.sg.graph.edges.data())
 
@@ -157,44 +180,57 @@ def create_plot(lobstergraph: LobsterGraph):
     z_min = min(zs)
     z_max = max(zs)
 
+    counter = len(atoms)
     for i, (dim_min, dim_max) in enumerate([(x_min, x_max), (y_min, y_max), (z_min, z_max)]):
-        pass
-
-    #***#
-
-    new_frac_coords = []
-    new_edges = []
-    new_axes = []
-    j = len(frac_coords)
-    ###
-    shifts = [data["to_jimage"] for _, _, data in lobstergraph.sg.graph.edges.data()]
-    shifts += [np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 0, 1])]
-    ###
-    #for _, _, data in lobstergraph.sg.graph.edges.data():
-        #vec = data["to_jimage"]
-    for vec in shifts:
-        for i, frac_coord in enumerate(frac_coords):
-            new_frac_coord = frac_coord + vec
-            new_frac_coords.append(new_frac_coord)
-            new_coord = np.dot(cart_crystal_axis_mat, new_frac_coord)
-            coords.append(new_coord)
-            atoms[j] = {
-                "element": atoms[i]["element"],
-                "number": atoms[i]["number"]
-            }
-            j += 1
-        for start, end in edges:
-            new_start = start + np.dot(cart_crystal_axis_mat, vec)
-            new_end = end + np.dot(cart_crystal_axis_mat, vec)
-            new_edges.append((new_start, new_end))
-        for axis in axes:
-            start, end = axis
-            new_start = start + np.dot(cart_crystal_axis_mat, vec)
-            new_end = end + np.dot(cart_crystal_axis_mat, vec)
-            new_axes.append((new_start, new_end))
-    frac_coords += new_frac_coords
-    edges += new_edges
-    axes += new_axes
+        shift = np.array([0, 0, 0])
+        shift[i] = 1.0
+        new_axes = []
+        new_edges = []
+        new_cells = []
+        for j in range(dim_min, 0):
+            for start, end in axes:
+                new_start = start + np.dot(cart_crystal_axis_mat, j * shift)
+                new_end = end + np.dot(cart_crystal_axis_mat, j * shift)
+                new_axes.append((new_start, new_end))
+            for start, end in edges:
+                new_start = start + np.dot(cart_crystal_axis_mat, j * shift)
+                new_end = end + np.dot(cart_crystal_axis_mat, j * shift)
+                new_edges.append((new_start, new_end))
+            for cell in cells:
+                new_coords = []
+                for k, coord in enumerate(cell):
+                    new_coord = coord + np.dot(cart_crystal_axis_mat, j * shift)
+                    new_coords.append(new_coord)
+                    atoms[counter] = {
+                        "element": atoms[k]["element"],
+                        "number": atoms[k]["number"]
+                    }
+                    counter += 1
+                new_cells.append(new_coords)
+        for j in range(1, dim_max+1):
+            for start, end in axes:
+                new_start = start + np.dot(cart_crystal_axis_mat, j * shift)
+                new_end = end + np.dot(cart_crystal_axis_mat, j * shift)
+                new_axes.append((new_start, new_end))
+            for start, end in edges:
+                new_start = start + np.dot(cart_crystal_axis_mat, j * shift)
+                new_end = end + np.dot(cart_crystal_axis_mat, j * shift)
+                new_edges.append((new_start, new_end))
+            for cell in cells:
+                new_coords = []
+                for k, coord in enumerate(cell):
+                    new_coord = coord + np.dot(cart_crystal_axis_mat, j * shift)
+                    new_coords.append(new_coord)
+                    atoms[counter] = {
+                        "element": atoms[k]["element"],
+                        "number": atoms[k]["number"]
+                    }
+                    counter += 1
+                new_cells.append(new_coords)
+        axes += new_axes
+        edges += new_edges
+        cells += new_cells
+    """
 
     axis = dict(
         showbackground=False,
@@ -258,11 +294,12 @@ def create_plot(lobstergraph: LobsterGraph):
 
     fig.add_trace(axes_trace)
 
-    for i, coord in enumerate(coords):
-        node_x.append(coord[0])
-        node_y.append(coord[1])
-        node_z.append(coord[2])
-        atom_number.append(atoms[i]["number"])
+    for cell in cells:
+        for i, coord in enumerate(cell):
+            node_x.append(coord[0])
+            node_y.append(coord[1])
+            node_z.append(coord[2])
+            atom_number.append(atoms[i]["number"])
 
     node_trace = go.Scatter3d(
         x=node_x,
@@ -282,20 +319,37 @@ def create_plot(lobstergraph: LobsterGraph):
     fig.add_trace(node_trace)
 
     #return fig
-    #fig.show()
+    fig.show()
+
+
+
+def get_random_structure() -> str:
+    filepath = os.path.expanduser("~/automationresults")
+    mps = os.listdir(filepath)
+    rand_index = random.randrange(len(mps))
+    dir = mps[rand_index]
+    path = os.path.join(filepath, dir)
+    print(f"RANDOMLY CHOSEN STRUCTURE: {dir}")
+    return path
+
+
+
+def get_chosen_structure(file: str = None) -> str:
+    if file is None:
+        path = get_random_structure()
+    else:
+        path = os.path.join(os.path.expanduser("~/automationresults"), file)
+    return path
 
 
 
 warnings.filterwarnings(action='ignore')
 
-dir = "mp-10143/"
-#crystalsystem = "cubic"
-filepath = os.path.expanduser("~/automationresults")
-#mps = os.listdir(filepath)
-#rand_index = random.randrange(len(mps))
-#dir = mps[rand_index]
-path = os.path.join(filepath, dir)
-#path = os.path.join(os.path.expanduser("~/RAW_files_phonon/"), crystalsystem, dir)
+#dir = "mp-10143/"
+#dir = "mp-510401"
+dir = "mp-2384"
+path = get_chosen_structure(dir)
+#path = get_random_structure()
 path_to_poscar = os.path.join(path, "POSCAR")
 path_to_charge = os.path.join(path, "CHARGE.lobster")
 path_to_icobilist = os.path.join(path, "ICOBILIST.lobster")
@@ -317,4 +371,20 @@ testgraph = LobsterGraph(
     add_additional_data_sg=True
 )
 
-plotfig = create_plot(testgraph)
+#plotfig = create_plot(testgraph)
+
+
+
+from pymatgen.electronic_structure.cohp import CompleteCohp
+from pymatgen.electronic_structure.plotter import CohpPlotter
+
+dir = get_random_structure()
+COHPCAR_path = os.path.join(dir, "COHPCAR.lobster")
+POSCAR_path = os.path.join(dir, "POSCAR")
+
+completecohp = CompleteCohp.from_file(
+    fmt="LOBSTER", filename=COHPCAR_path, structure_file=POSCAR_path
+)
+
+print(completecohp.bonds["1"])
+print(len(completecohp.bonds))
