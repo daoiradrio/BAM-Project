@@ -8,6 +8,9 @@ import plotly.graph_objs as go
 from lobsterpy.structuregraph.graph import LobsterGraph
 from itertools import product, permutations
 
+from transformator import Transformator
+from pymatgen.analysis.structure_analyzer import SpacegroupAnalyzer
+
 
 
 def create_plot(lobstergraph: LobsterGraph):
@@ -165,7 +168,7 @@ def create_plot(lobstergraph: LobsterGraph):
                 end = np.dot(cart_crystal_axis_mat, end)
                 edges.append((start, end))
 
-    """
+    #"""
     data = list(lobstergraph.sg.graph.edges.data())
 
     xs = [vec["to_jimage"][0] for _, _, vec in data]
@@ -230,7 +233,7 @@ def create_plot(lobstergraph: LobsterGraph):
         axes += new_axes
         edges += new_edges
         cells += new_cells
-    """
+    #"""
 
     axis = dict(
         showbackground=False,
@@ -262,6 +265,8 @@ def create_plot(lobstergraph: LobsterGraph):
     fig = go.Figure(layout=layout)
 
     for start, end in edges:
+        #start = np.dot(cart_crystal_axis_mat, new_edges[i])
+        #end = np.dot(cart_crystal_axis_mat, new_edges[i+1])
         fig.add_trace(
             go.Scatter3d(
                 x=[start[0], end[0], None],
@@ -346,8 +351,8 @@ def get_chosen_structure(file: str = None) -> str:
 warnings.filterwarnings(action='ignore')
 
 #dir = "mp-10143/"
-#dir = "mp-510401"
-dir = "mp-2384"
+dir = "mp-510401"
+#dir = "mp-2384"
 path = get_chosen_structure(dir)
 #path = get_random_structure()
 path_to_poscar = os.path.join(path, "POSCAR")
@@ -371,10 +376,11 @@ testgraph = LobsterGraph(
     add_additional_data_sg=True
 )
 
-#plotfig = create_plot(testgraph)
+plotfig = create_plot(testgraph)
 
 
 
+"""
 from pymatgen.electronic_structure.cohp import CompleteCohp
 from pymatgen.electronic_structure.plotter import CohpPlotter
 
@@ -385,6 +391,4 @@ POSCAR_path = os.path.join(dir, "POSCAR")
 completecohp = CompleteCohp.from_file(
     fmt="LOBSTER", filename=COHPCAR_path, structure_file=POSCAR_path
 )
-
-print(completecohp.bonds["1"])
-print(len(completecohp.bonds))
+#"""

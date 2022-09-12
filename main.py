@@ -72,6 +72,7 @@ class UnitCell:
             self.atoms[i]["element"] = structure[i].specie
             self.atoms[i]["number"] = structure[i].specie.number
             self.eq_atoms[i] = []
+        """
             indices0 = []
             indices1 = []
             for j, c in enumerate(coord):
@@ -113,6 +114,7 @@ class UnitCell:
                     self.atoms[m]["number"] = structure[i].specie.number
                     self.eq_atoms[i].append(m)
         self.coords += new_coords
+        """
 
         self.edges = []
         limit = 0.01
@@ -126,6 +128,7 @@ class UnitCell:
                (-limit <= end[1] <= limit+1) and \
                (-limit <= end[2] <= limit+1):
                 self.edges.append((start_coord, end_coord))
+        """
             for eq_atom1 in self.eq_atoms[node1]:
                 shift = self.frac_coords[eq_atom1] - self.frac_coords[node1]
                 new_end = end + shift
@@ -137,7 +140,8 @@ class UnitCell:
                     d1 = np.linalg.norm(start_coord - end_coord)
                     if abs(d0 - d1) <= limit:
                         self.edges.append((start_coord, end_coord))
-            # TODO: Müssen hier noch die anderen jeweils äquivalenten Atome durchgegangen werden, oder reicht das schon?
+        """
+        # TODO: Müssen hier noch die anderen jeweils äquivalenten Atome durchgegangen werden, oder reicht das schon?
 
 
     def plot_cell(self):
@@ -271,7 +275,7 @@ class UnitCell:
         data.append(trace2)
 
         fig = go.Figure(data=data, layout=layout)
-        #fig.show()
+        fig.show()
         #return fig
 
 

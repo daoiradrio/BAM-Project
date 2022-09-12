@@ -70,6 +70,12 @@ class Transformator:
 
     def get_lattice_type(self):
         n = self._space_group_data["number"]
+        system = self.get_crystal_system()
+        if n in [146, 148, 155, 160, 161, 166, 167]:
+            system = "rhombohedral"
+        if system == "trigonal":
+            system = "hexagonal"
+        return system
 
 
     def get_space_group_symbol(self):
@@ -88,8 +94,6 @@ class Transformator:
         )
 
         if latt_type in ("orthorhombic", "cubic"):
-            # you want to keep the c axis where it is
-            # to keep the C- settings
             transf = np.zeros(shape=(3, 3))
             if self.get_space_group_symbol().startswith("C"):
                 transf[2] = [0, 0, 1]
