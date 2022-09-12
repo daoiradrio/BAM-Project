@@ -8,12 +8,19 @@ import plotly.graph_objs as go
 from lobsterpy.structuregraph.graph import LobsterGraph
 from itertools import product, permutations
 
-from transformator import Transformator
-from pymatgen.analysis.structure_analyzer import SpacegroupAnalyzer
-
 
 
 def create_plot(lobstergraph: LobsterGraph):
+    """
+    Creation of an interactive 3D plot of a compound's primitive supercell, containing information about site and
+    bond properties.
+
+    :param lobstergraph: LobsterGraph object, contains information about connectivity, site and bond properties in a
+                         graph-like manner
+    :return: plotly Figure, visualization of primitive supercell by 3D scatter plot
+    """
+
+    # initialization block
     cells = []
 
     atom_number = []
@@ -21,7 +28,6 @@ def create_plot(lobstergraph: LobsterGraph):
     node_x = []
     node_y = []
     node_z = []
-    coords = []
 
     axis_x = []
     axis_y = []
@@ -43,65 +49,56 @@ def create_plot(lobstergraph: LobsterGraph):
     gamma_rad = np.deg2rad(gamma)
     origin = np.array([0, 0, 0])
 
-    # x-axis
+    # cartesian x-axis
     x = np.array([a, 0, 0])
     axes.append((origin, x))
-    # y-axis
+    # cartesian y-axis
     y = np.array([b * np.cos(gamma_rad), b * np.sin(gamma_rad), 0])
     axes.append((origin, y))
-    # z-axis
+    # cartesian z-axis
     z = np.array([c * np.cos(beta_rad), c * np.cos(alpha_rad), c * np.sin(gamma_rad)])
     axes.append((origin, z))
-    # x-axis parallel in y-direction
+    # cartesian x-axis parallel in y-direction
     axes.append((y, y + x))
-    # x-axis parallel in z-direction
+    # cartesian x-axis parallel in z-direction
     axes.append((z, z + x))
-    # x-axis parallel in yz-direction
+    # cartesian x-axis parallel in yz-direction
     axes.append((y + z, y + z + x))
-    # y-axis parallel in x-direction
+    # cartesian y-axis parallel in x-direction
     axes.append((x, x + y))
-    # y-axis parallel in z-direction
+    # cartesian y-axis parallel in z-direction
     axes.append((z, z + y))
-    # y-axis parallel in xz-direction
+    # cartesian y-axis parallel in xz-direction
     axes.append((x + z, x + z + y))
-    # z-axis parallel in x-direction
+    # cartesian z-axis parallel in x-direction
     axes.append((x, x + z))
-    # z-axis parallel in y-direction
+    # cartesian z-axis parallel in y-direction
     axes.append((y, y + z))
-    # z-axis parallel in xy-direction
+    # cartesian z-axis parallel in xy-direction
     axes.append((x + y, x + y + z))
 
+    # matrix to transform fractional to cartesian coordinates
     cart_crystal_axis_mat = np.stack((x, y, z), axis=-1)
 
-    """
-    tol = 0.01
-    for node1, node2, data in lobstergraph.sg.graph.edges.data():
-        frac_coord1 = lobstergraph.sg.structure.frac_coords[node1]
-        #coord1 = np.dot(cart_crystal_axis_mat, frac_coord1)
-        frac_coord2 = lobstergraph.sg.structure.frac_coords[node2] + data["to_jimage"]
-        #coord2 = np.dot(cart_crystal_axis_mat, frac_coord2)
-        if (-tol <= frac_coord2[0] <= 1+tol) and \
-           (-tol <= frac_coord2[1] <= 1+tol) and \
-           (-tol <= frac_coord2[2] <= 1+tol):
-            coord1 = np.dot(cart_crystal_axis_mat, frac_coord1)
-            coord2 = np.dot(cart_crystal_axis_mat, frac_coord2)
-            edges.append((coord1, coord2))
-    """
-
+    # block for building first full primitive cell
+    cells.append([])
     new_coords = []
     frac_coords = []
     new_frac_coords = []
     atoms = dict()
     eq_atoms = dict()
-    k = len(structure.frac_coords)
+    num_atoms = len(structure.frac_coords)
+    # iterate over all already existing nodes, save cartesian coordinates, fractional coordinates, element and
+    # element number
     for i, frac_coord in enumerate(structure.frac_coords.copy()):
+        cells[0].append(np.dot(cart_crystal_axis_mat, frac_coord))
         frac_coords.append(frac_coord)
-        coord = np.dot(cart_crystal_axis_mat, frac_coord)
-        coords.append(coord)
         atoms[i] = {
             "element": str(structure[i].specie),
             "number": structure[i].specie.number,
         }
+        # for every node find fractional coordinates with entries 0 or 1 in some dimension, for these nodes equivalent
+        # nodes/coordinates (due to translational symmetry) will be created
         eq_atoms[i] = []
         indices0 = []
         indices1 = []
@@ -114,6 +111,7 @@ def create_plot(lobstergraph: LobsterGraph):
         n1 = len(indices1)
         add0 = [np.zeros(shape=3)]
         add1 = [np.zeros(shape=3)]
+        # if there is more than one entry with 0 or 1 create all possible permutations for the translational shift
         for j in range(1, n0 + 1):
             v = [1] * j + [0] * (n0 - n1 - j)
             ps0 = set(permutations(v))
@@ -131,23 +129,28 @@ def create_plot(lobstergraph: LobsterGraph):
                     a1[index] = permutation
                 add1.append(a1)
         adds = product(add0, add1)
+        # create new nodes/coordinates by adding translational shift vectors
+        # save new fractional coordinates, cartesian coordinates, element and element number
         for a0, a1 in adds:
             if np.linalg.norm(a0 + a1) > 0:
                 new_frac_coord = frac_coord + a0 + a1
                 new_frac_coords.append(new_frac_coord)
                 new_coord = np.dot(cart_crystal_axis_mat, new_frac_coord)
                 new_coords.append(new_coord)
-                atoms[k] = {
+                atoms[num_atoms] = {
                     "element": str(structure[i].specie),
                     "number": structure[i].specie.number
                 }
-                eq_atoms[i].append(k)
-                k += 1
-    coords += new_coords
+                eq_atoms[i].append(num_atoms)
+                num_atoms += 1
+    # add new cartesian coordinates to create first full primitve cell
+    cells += new_coords
+    # add new fractional coordinates
     frac_coords += new_frac_coords
-    cells.append(coords)
 
+    # block for getting edges of first primitive cell
     tol = 0.01
+    # iterate over all already existing nodes
     for node1, node2, data in lobstergraph.sg.graph.edges.data():
         frac_coord1 = lobstergraph.sg.structure.frac_coords[node1]
         frac_coord2 = lobstergraph.sg.structure.frac_coords[node2] + data["to_jimage"]
@@ -183,7 +186,7 @@ def create_plot(lobstergraph: LobsterGraph):
     z_min = min(zs)
     z_max = max(zs)
 
-    counter = len(atoms)
+    num_atoms = len(atoms)
     for i, (dim_min, dim_max) in enumerate([(x_min, x_max), (y_min, y_max), (z_min, z_max)]):
         shift = np.array([0, 0, 0])
         shift[i] = 1.0
@@ -200,16 +203,15 @@ def create_plot(lobstergraph: LobsterGraph):
                 new_end = end + np.dot(cart_crystal_axis_mat, j * shift)
                 new_edges.append((new_start, new_end))
             for cell in cells:
-                new_coords = []
+                new_cell = []
                 for k, coord in enumerate(cell):
-                    new_coord = coord + np.dot(cart_crystal_axis_mat, j * shift)
-                    new_coords.append(new_coord)
-                    atoms[counter] = {
+                    new_cell.append(coord + np.dot(cart_crystal_axis_mat, j * shift))
+                    atoms[num_atoms] = {
                         "element": atoms[k]["element"],
                         "number": atoms[k]["number"]
                     }
-                    counter += 1
-                new_cells.append(new_coords)
+                    num_atoms += 1
+                new_cells.append(new_cell)
         for j in range(1, dim_max+1):
             for start, end in axes:
                 new_start = start + np.dot(cart_crystal_axis_mat, j * shift)
@@ -220,16 +222,15 @@ def create_plot(lobstergraph: LobsterGraph):
                 new_end = end + np.dot(cart_crystal_axis_mat, j * shift)
                 new_edges.append((new_start, new_end))
             for cell in cells:
-                new_coords = []
+                new_cell = []
                 for k, coord in enumerate(cell):
-                    new_coord = coord + np.dot(cart_crystal_axis_mat, j * shift)
-                    new_coords.append(new_coord)
-                    atoms[counter] = {
+                    new_cell.append(coord + np.dot(cart_crystal_axis_mat, j * shift))
+                    atoms[num_atoms] = {
                         "element": atoms[k]["element"],
                         "number": atoms[k]["number"]
                     }
-                    counter += 1
-                new_cells.append(new_coords)
+                    num_atoms += 1
+                new_cells.append(new_cell)
         axes += new_axes
         edges += new_edges
         cells += new_cells
@@ -265,8 +266,6 @@ def create_plot(lobstergraph: LobsterGraph):
     fig = go.Figure(layout=layout)
 
     for start, end in edges:
-        #start = np.dot(cart_crystal_axis_mat, new_edges[i])
-        #end = np.dot(cart_crystal_axis_mat, new_edges[i+1])
         fig.add_trace(
             go.Scatter3d(
                 x=[start[0], end[0], None],
@@ -350,8 +349,8 @@ def get_chosen_structure(file: str = None) -> str:
 
 warnings.filterwarnings(action='ignore')
 
-#dir = "mp-10143/"
-dir = "mp-510401"
+dir = "mp-10143/"
+#dir = "mp-510401"
 #dir = "mp-2384"
 path = get_chosen_structure(dir)
 #path = get_random_structure()
