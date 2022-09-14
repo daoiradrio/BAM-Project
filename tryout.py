@@ -15,12 +15,12 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
     """
     function for building first full primitive cell with edges
 
-    :param lobstergraph:
-    :param cart_crystal_axis_matrix:
-    :return cells:
-    :return frac_coords:
-    :return atoms:
-    :return eq_atoms:
+    :param lobstergraph: graph object containing information about nodes (atoms) and edges (bonds)
+    :return cells: list of primitive cells, contains one cell after this function is finished
+    :return atoms: dictionary of atoms in primitive cell, keys are enumerated atom numbers, values element symbol and
+                   element number
+    :return eq_atoms: dictionary of atoms equivalent the already existing ones in the graph object, keys are
+                      enumerated atoms numbers, values are enumerated atom numbers of equivalent new atoms
     """
 
     # initialization block
@@ -104,6 +104,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
 
     # iterate over all already existing nodes
     for i, (node1, node2, data) in enumerate(lobstergraph.sg.graph.edges.data()):
+        # extract edge properties
         cohp_data = completecohp.get_cohp_by_label(label=data["bond_label"]).as_dict()
         spinup_cohps = cohp_data["COHP"]["1"]
         spindown_cohps = cohp_data["COHP"]["-1"]
@@ -117,7 +118,9 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
         if (-tol <= frac_coord2[0] <= 1+tol) and \
            (-tol <= frac_coord2[1] <= 1+tol) and \
            (-tol <= frac_coord2[2] <= 1+tol):
+            # add edge by fractional coordinates of connected nodes to cell
             cells[0]["edges"].append((frac_coord1, frac_coord2))
+            # add edge properties to cell
             cells[0]["edge_properties"]["cohp_plot"].append((x, y))
             cells[0]["edge_properties"]["bond_length"].append(data["bond_length"])
             cells[0]["edge_properties"]["icobi"].append(data["ICOBI"])
@@ -133,7 +136,9 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
             if (-tol <= end[0] <= 1+tol) and \
                (-tol <= end[1] <= 1+tol) and \
                (-tol <= end[2] <= 1+tol):
+                # add edge by fractional coordinates of connected nodes to cell
                 cells[0]["edges"].append((start, end))
+                # add edge properties to cell
                 cells[0]["edge_properties"]["cohp_plot"].append((x, y))
                 cells[0]["edge_properties"]["bond_length"].append(data["bond_length"])
                 cells[0]["edge_properties"]["icobi"].append(data["ICOBI"])
@@ -148,6 +153,18 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
 def get_primitive_supercell(
         lobstergraph: LobsterGraph, cells: list, atoms: dict, cart_crystal_axis_matrix: np.ndarray
 ) -> list:
+    """
+    function to build a primitive supercell from a primitive cell based on connectivity information in graph
+    object ("to_jimage" vectors)
+
+    :param lobstergraph: graph object containing information about nodes (atoms) and edges (bonds)
+    :param cells: list containing primitive cell to duplicate in order to build supercell
+    :param atoms: dictionary of atoms in primitive cell, keys are enumerated atom numbers, values element symbol and
+                  element number
+    :param cart_crystal_axis_matrix:
+    :return: cells: list containing all primitive cells that make up primitive supercell
+    """
+
     data = list(lobstergraph.sg.graph.edges.data())
 
     xs = [vec["to_jimage"][0] for _, _, vec in data]
@@ -168,16 +185,15 @@ def get_primitive_supercell(
     # minimum z-component of all "to_jimage" vectors determines size of supercell in -z direction
     z_max = max(zs)
 
-    # block for building primitive supercell
     # iterate over x, y, z dimension
-    # x_max/y_max/z_max times in positive direction
     num_atoms = len(atoms)
     for i, (dim_min, dim_max) in enumerate([(x_min, x_max), (y_min, y_max), (z_min, z_max)]):
+        # create new cell by shifting existing one in x, y or z direction
         shift = np.array([0, 0, 0])
         shift[i] = 1.0
         new_cells = []
-        # repeat axes, nodes and edges x_min/y_min/z_min times in negative direction
         for cell in cells:
+            # repeat every cell x_min/y_min/z_min times in negative direction
             for j in range(dim_min, 0):
                 new_cell = {
                     "frac_coords": [],
@@ -192,10 +208,13 @@ def get_primitive_supercell(
                         "icohp_bonding_perc": []
                     }
                 }
+                # add axes to new cell
                 for start, end in cell["axes"]:
                     new_start = start + np.dot(cart_crystal_axis_matrix, j * shift)
                     new_end = end + np.dot(cart_crystal_axis_matrix, j * shift)
                     new_cell["axes"].append((new_start, new_end))
+                # add edges (bonds) and edge properties (bond properties) to new cell
+                # (the latter based on equivalence)
                 for k, (start, end) in enumerate(cell["edges"]):
                     new_start = start + j * shift
                     new_end = end + j * shift
@@ -208,6 +227,7 @@ def get_primitive_supercell(
                     new_cell["edge_properties"]["icohp_bonding_perc"].append(
                         cell["edge_properties"]["icohp_bonding_perc"][k]
                     )
+                # add nodes (atoms) to new cell as coordinates
                 for k, frac_coord in enumerate(cell["frac_coord"]):
                     new_cell["frac_coords"].append(frac_coord + j * shift)
                     new_cell["edge_properties"].append(cell["edge_properties"][k])
@@ -217,6 +237,7 @@ def get_primitive_supercell(
                     }
                     num_atoms += 1
                 new_cells.append(new_cell)
+            # repeat every cell x_max/y_max/z_max times in positive direction
             for j in range(1, dim_max + 1):
                 new_cell = {
                     "frac_coords": [],
@@ -231,10 +252,13 @@ def get_primitive_supercell(
                         "icohp_bonding_perc": []
                     }
                 }
+                # add axes to new cell
                 for start, end in cell["axes"]:
                     new_start = start + np.dot(cart_crystal_axis_matrix, j * shift)
                     new_end = end + np.dot(cart_crystal_axis_matrix, j * shift)
                     new_cell["axes"].append((new_start, new_end))
+                # add edges (bonds) and edge properties (bond properties) to new cell
+                # (the latter based on equivalence)
                 for k, (start, end) in enumerate(cell["edges"]):
                     new_start = start + j * shift
                     new_end = end + j * shift
@@ -247,6 +271,7 @@ def get_primitive_supercell(
                     new_cell["edge_properties"]["icohp_bonding_perc"].append(
                         cell["edge_properties"]["icohp_bonding_perc"][k]
                     )
+                # add nodes (atoms) to new cell as coordinates
                 for k, frac_coord in enumerate(cell["frac_coords"]):
                     new_cell["frac_coords"].append(frac_coord + j * shift)
                     atoms[num_atoms] = {
