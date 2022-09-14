@@ -3,8 +3,7 @@ from dash import Dash, dcc, html, Input, Output
 import plotly.graph_objs as go
 import numpy as np
 
-#from tryout2 import lgo, Cell
-from typing import Union
+from tryout import plotfig
 
 
 
@@ -137,13 +136,45 @@ def plot(cell: UnitCell) -> go.Figure:
 
 
 
-dir = "mp-10143"
-s = get_conventional_structure(dir)
-cell = UnitCell(s)
-fig = plot(cell)
-
-#cell = Cell(lgo)
+#dir = "mp-10143"
+#s = get_conventional_structure(dir)
+#cell = UnitCell(s)
 #fig = plot(cell)
+
+axis = dict(
+    showbackground=False,
+    showline=False,
+    zeroline=False,
+    showgrid=False,
+    showticklabels=False,
+    visible=False,
+    title="",
+    showspikes=False
+)
+
+layout = go.Layout(
+    showlegend=False,
+    scene=dict(
+        xaxis=axis,
+        yaxis=axis,
+    ),
+    # margin=dict(t=100),
+    margin=dict(
+        l=20,
+        r=20,
+        b=10,
+        t=10,
+    ),
+    #xaxis=dict(visible=False), # TODO: muss am Ende entfernt werden
+    #yaxis=dict(visible=False), # TODO: muss am Ende entfern werden
+    height=300,
+    width=430,
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+)
+
+cohp_plot = go.Figure(layout=layout)
+fig = plotfig
 
 
 app = Dash(__name__)
@@ -169,7 +200,7 @@ app.layout = html.Div([
         html.Div(
             dcc.Graph(
                 id="plot",
-                figure=cell.testgraph,
+                figure=cohp_plot,
             ),
             className="container-class",
             id="plot-container",
@@ -281,18 +312,18 @@ def edge_hoverevent(hover_data):
         paper_bgcolor="rgba(0,0,0,0)",
     )
 
-    cell.testgraph = go.Figure(layout=layout)
-    cell.testgraph.add_trace(go.Scatter(x=[None], y=[None], line=dict(color="red")))
+    cohp = go.Figure(layout=layout)
+    cohp.add_trace(go.Scatter(x=[None], y=[None], line=dict(color="red")))
 
     try:
-        bond_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc = hover_data["points"][0]["customdata"]
-        cell.testgraph.update_traces(x=[1, 2, 3], y=[1, 2, 3])
+        cohp_data, bond_length, icobi, icoop, icohp, icohp_bonding_perc = hover_data["points"][0]["customdata"]
+        cohp.update_traces(x=cohp_data[0], y=cohp_data[1])
     except:
         bond_length = "-"
-        ICOBI = "-"
-        ICOOP = "-"
-        ICOHP = "-"
-        ICOHP_bonding_perc = "-"
+        icobi = "-"
+        icoop = "-"
+        icohp = "-"
+        icohp_bonding_perc = "-"
 
     for trace in fig.data:
         if "customdata" in trace:
@@ -304,7 +335,7 @@ def edge_hoverevent(hover_data):
             fig.data[trace_index]["opacity"] = 1
     fig.update_layout(scene_camera=last_camera_position)
 
-    return bond_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc, fig, cell.testgraph
+    return bond_length, icobi, icoop, icohp, icohp_bonding_perc, fig, cohp
 
 
 
