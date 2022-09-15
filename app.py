@@ -157,19 +157,18 @@ layout = go.Layout(
         xaxis=axis,
         yaxis=axis,
     ),
-    # margin=dict(t=100),
     margin=dict(
         l=20,
         r=20,
         b=10,
         t=10,
     ),
-    xaxis=dict(visible=False), # TODO: muss am Ende entfernt werden
-    yaxis=dict(visible=False), # TODO: muss am Ende entfern werden
     height=300,
     width=430,
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
+    xaxis=dict(visible=False),
+
 )
 
 cohp_plot = go.Figure(layout=layout)
@@ -298,11 +297,49 @@ def edge_hoverevent(hover_data):
         icohp = f"{icohp} eV"
         icohp_bonding_perc = f"{icohp_bonding_perc*100} %"
 
+        """
         layout = go.Layout(
             showlegend=False,
             scene=dict(
                 xaxis=axis,
                 yaxis=axis,
+            ),
+            margin=dict(
+                l=20,
+                r=20,
+                b=10,
+                t=10,
+            ),
+            height=450,
+            width=650,
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+        """
+
+        layout = go.Layout(
+            showlegend=False,
+            scene=dict(
+                xaxis=dict(
+                    showbackground=False,
+                    showline=False,
+                    zeroline=False,
+                    showgrid=False,
+                    showticklabels=False,
+                    visible=True,
+                    title="",
+                    showspikes=False
+                ),
+                yaxis=dict(
+                    showbackground=False,
+                    showline=False,
+                    zeroline=False,
+                    showgrid=False,
+                    showticklabels=False,
+                    visible=True,
+                    title="",
+                    showspikes=False
+                ),
             ),
             margin=dict(
                 l=20,
@@ -328,8 +365,26 @@ def edge_hoverevent(hover_data):
         layout = go.Layout(
             showlegend=False,
             scene=dict(
-                xaxis=axis,
-                yaxis=axis,
+                xaxis=dict(
+                    showbackground=False,
+                    showline=False,
+                    zeroline=False,
+                    showgrid=False,
+                    showticklabels=False,
+                    title="",
+                    showspikes=False,
+                    visible=False
+                ),
+                yaxis=dict(
+                    showbackground=False,
+                    showline=False,
+                    zeroline=False,
+                    showgrid=False,
+                    showticklabels=False,
+                    title="",
+                    showspikes=False,
+                    visible=False
+                ),
             ),
             margin=dict(
                 l=20,
@@ -337,8 +392,6 @@ def edge_hoverevent(hover_data):
                 b=10,
                 t=10,
             ),
-            xaxis=dict(visible=False),
-            yaxis=dict(visible=False),
             height=450,
             width=650,
             plot_bgcolor="rgba(0,0,0,0)",
