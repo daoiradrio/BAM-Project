@@ -15,7 +15,7 @@ html, body{
 }
 
 table{
-    border-spacing: 50px;
+    border-spacing: 120px 25px;
     font-family: "Courier New";
 }
 
@@ -48,15 +48,15 @@ table{
 
 #structuregraph-container{
     height: 100%;
-    width: 74%;
+    width: 64%;
     float: right;
     margin-right: 10px;
     margin-left: 5px;
 }
 
 #plot-container{
-    height: 50%;
-    width: 24%;
+    height: 75%;
+    width: 34%;
     float: left;
     padding-left: 10px;
     padding-right: 10px;
@@ -68,14 +68,14 @@ table{
 }
 
 #data-container{
-    height: 50%;
-    width: 24%;
+    height: 25%;
+    width: 34%;
     float: left;
-    padding-left: 30px;
-    padding-right: 5px;
-    padding-top: 25px;
-    padding-bottom: 45px;
-    text-align: center;
+    /*padding-left: 0px;*/
+    /*padding-right: 20px;*/
+    padding-top: 30px;
+    padding-bottom: 40px;
+    /*text-align: center;*/
     margin-top: 10px;
     margin-right: 5px;
     margin-left: 10px;

@@ -285,14 +285,14 @@ def get_primitive_supercell(
 
 
 
-def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp):
+def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Figure:
     """
     Creation of an interactive 3D plot of a compound's primitive supercell, containing information about site and
     bond properties.
 
     :param lobstergraph: LobsterGraph object, contains information about connectivity, site and bond properties in a
                          graph-like manner
-    :return: plotly Figure, visualization of primitive supercell by 3D scatter plot
+    :return: fig: visualization of primitive supercell by 3D scatter plot
     """
 
     # initialization block
@@ -383,7 +383,8 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp):
             t=10,
         ),
         hovermode="closest",
-        height=850
+        height=820,
+        width=1195
     )
 
     fig = go.Figure(layout=layout)
@@ -465,8 +466,8 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp):
 
     fig.add_trace(node_trace)
 
+    # fig.show()
     return fig
-    #fig.show()
 
 
 

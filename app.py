@@ -1,4 +1,4 @@
-from main import get_conventional_structure, UnitCell
+from main import UnitCell
 from dash import Dash, dcc, html, Input, Output
 import plotly.graph_objs as go
 import numpy as np
@@ -7,7 +7,6 @@ from tryout import plotfig
 
 
 
-#def plot(cell: Union[UnitCell, Cell]) -> go.Figure:
 def plot(cell: UnitCell) -> go.Figure:
     atom_number = []
 
@@ -165,8 +164,8 @@ layout = go.Layout(
         b=10,
         t=10,
     ),
-    #xaxis=dict(visible=False), # TODO: muss am Ende entfernt werden
-    #yaxis=dict(visible=False), # TODO: muss am Ende entfern werden
+    xaxis=dict(visible=False), # TODO: muss am Ende entfernt werden
+    yaxis=dict(visible=False), # TODO: muss am Ende entfern werden
     height=300,
     width=430,
     plot_bgcolor="rgba(0,0,0,0)",
@@ -291,39 +290,63 @@ def edge_hoverevent(hover_data):
         showspikes=False
     )
 
-    layout = go.Layout(
-        showlegend=False,
-        scene=dict(
-            xaxis=axis,
-            yaxis=axis,
-        ),
-        # margin=dict(t=100),
-        margin=dict(
-            l=20,
-            r=20,
-            b=10,
-            t=10,
-        ),
-        #xaxis=dict(visible=False), # TODO: muss am Ende entfernt werden
-        #yaxis=dict(visible=False), # TODO: muss am Ende entfern werden
-        height=300,
-        width=430,
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-    )
-
-    cohp = go.Figure(layout=layout)
-    cohp.add_trace(go.Scatter(x=[None], y=[None], line=dict(color="red")))
-
     try:
         cohp_data, bond_length, icobi, icoop, icohp, icohp_bonding_perc = hover_data["points"][0]["customdata"]
-        cohp.update_traces(x=cohp_data[0], y=cohp_data[1])
+        bond_length = f"{bond_length} {chr(8491)}"
+        #icobi = ohne Einheit
+        #icoop = Anteil Elektronen??
+        icohp = f"{icohp} eV"
+        icohp_bonding_perc = f"{icohp_bonding_perc*100} %"
+
+        layout = go.Layout(
+            showlegend=False,
+            scene=dict(
+                xaxis=axis,
+                yaxis=axis,
+            ),
+            margin=dict(
+                l=20,
+                r=20,
+                b=10,
+                t=10,
+            ),
+            height=450,
+            width=650,
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+
+        cohp = go.Figure(layout=layout)
+        cohp.add_trace(go.Scatter(x=cohp_data[0], y=cohp_data[1], line=dict(color="red")))
     except:
         bond_length = "-"
         icobi = "-"
         icoop = "-"
         icohp = "-"
         icohp_bonding_perc = "-"
+
+        layout = go.Layout(
+            showlegend=False,
+            scene=dict(
+                xaxis=axis,
+                yaxis=axis,
+            ),
+            margin=dict(
+                l=20,
+                r=20,
+                b=10,
+                t=10,
+            ),
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            height=450,
+            width=650,
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+
+        cohp = go.Figure(layout=layout)
+        cohp.add_trace(go.Scatter(x=[None], y=[None], line=dict(color="red")))
 
     for trace in fig.data:
         if "customdata" in trace:
