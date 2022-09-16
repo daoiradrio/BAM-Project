@@ -163,12 +163,12 @@ layout = go.Layout(
         b=10,
         t=10,
     ),
-    height=300,
-    width=430,
+    height=440,
+    width=600,
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
     xaxis=dict(visible=False),
-
+    yaxis=dict(visible=False)
 )
 
 cohp_plot = go.Figure(layout=layout)
@@ -278,6 +278,7 @@ app.layout = html.Div([
 def edge_hoverevent(hover_data):
     global last_camera_position
 
+    """
     axis = dict(
         showbackground=False,
         showline=False,
@@ -288,6 +289,25 @@ def edge_hoverevent(hover_data):
         title="",
         showspikes=False
     )
+    """
+
+    layout = go.Layout(
+        showlegend=False,
+        margin=dict(
+            l=20,
+            r=20,
+            b=10,
+            t=10,
+        ),
+        height=440,
+        width=600,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False)
+    )
+
+    cohp = go.Figure(layout=layout)
 
     try:
         cohp_data, bond_length, icobi, icoop, icohp, icohp_bonding_perc = hover_data["points"][0]["customdata"]
@@ -297,109 +317,50 @@ def edge_hoverevent(hover_data):
         icohp = f"{icohp} eV"
         icohp_bonding_perc = f"{icohp_bonding_perc*100} %"
 
-        """
-        layout = go.Layout(
-            showlegend=False,
-            scene=dict(
-                xaxis=axis,
-                yaxis=axis,
-            ),
-            margin=dict(
-                l=20,
-                r=20,
-                b=10,
-                t=10,
-            ),
-            height=450,
-            width=650,
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
+        cohp.add_trace(
+            go.Scatter(
+                x=cohp_data[0],
+                y=cohp_data[1],
+                line=dict(color="red")
+            )
         )
-        """
-
-        layout = go.Layout(
-            showlegend=False,
-            scene=dict(
-                xaxis=dict(
-                    showbackground=False,
-                    showline=False,
-                    zeroline=False,
-                    showgrid=False,
-                    showticklabels=False,
-                    visible=True,
-                    title="",
-                    showspikes=False
-                ),
-                yaxis=dict(
-                    showbackground=False,
-                    showline=False,
-                    zeroline=False,
-                    showgrid=False,
-                    showticklabels=False,
-                    visible=True,
-                    title="",
-                    showspikes=False
-                ),
-            ),
-            margin=dict(
-                l=20,
-                r=20,
-                b=10,
-                t=10,
-            ),
-            height=450,
-            width=650,
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
+        cohp.add_trace(
+            go.Scatter(
+                x=[min(cohp_data[0]), max(cohp_data[0])],
+                y=[0, 0],
+                mode="lines",
+                line=dict(
+                    width=1,
+                    color="black",
+                    dash="dash"
+                )
+            )
         )
 
-        cohp = go.Figure(layout=layout)
-        cohp.add_trace(go.Scatter(x=cohp_data[0], y=cohp_data[1], line=dict(color="red")))
+        cohp.update_xaxes(
+            visible=True,
+            title="COHP",
+            showline=True,
+            linewidth=1.5,
+            linecolor="black",
+            zeroline=True,
+            zerolinewidth=1,
+            zerolinecolor="black",
+        )
+        cohp.update_yaxes(
+            visible=True,
+            title="E - Efermi [eV]",
+            showline=True,
+            linewidth=1.5,
+            linecolor="black",
+        )
     except:
+        cohp.add_trace(go.Scatter(x=[None], y=[None], line=dict(color="red")))
         bond_length = "-"
         icobi = "-"
         icoop = "-"
         icohp = "-"
         icohp_bonding_perc = "-"
-
-        layout = go.Layout(
-            showlegend=False,
-            scene=dict(
-                xaxis=dict(
-                    showbackground=False,
-                    showline=False,
-                    zeroline=False,
-                    showgrid=False,
-                    showticklabels=False,
-                    title="",
-                    showspikes=False,
-                    visible=False
-                ),
-                yaxis=dict(
-                    showbackground=False,
-                    showline=False,
-                    zeroline=False,
-                    showgrid=False,
-                    showticklabels=False,
-                    title="",
-                    showspikes=False,
-                    visible=False
-                ),
-            ),
-            margin=dict(
-                l=20,
-                r=20,
-                b=10,
-                t=10,
-            ),
-            height=450,
-            width=650,
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-        )
-
-        cohp = go.Figure(layout=layout)
-        cohp.add_trace(go.Scatter(x=[None], y=[None], line=dict(color="red")))
 
     for trace in fig.data:
         if "customdata" in trace:
