@@ -39,7 +39,6 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
             "icohp_bonding_perc": []
         },
     }
-
     structure = lobstergraph.sg.structure
     num_atoms = len(structure.frac_coords)
     eq_atoms = dict()
@@ -182,8 +181,7 @@ def get_primitive_supercell(
 
     # iterate over x, y, z dimension
     num_atoms = len(cell["atoms"])
-    cells = []
-    cells.append(cell)
+    cells = [cell]
     for i, (dim_min, dim_max) in enumerate([(x_min, x_max), (y_min, y_max), (z_min, z_max)]):
         # create new cell by shifting existing one in x, y or z direction
         shift = np.array([0, 0, 0])
@@ -383,13 +381,17 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
 
     fig = go.Figure(layout=layout)
 
+    # build up structure plot by including the primitive cells in plot
     for cell in cells:
+        # collect node data for plot
         for atom in cell["atoms"].values():
             coord = np.dot(cart_crystal_axis_matrix, atom["frac_coord"])
             node_x.append(coord[0])
             node_y.append(coord[1])
             node_z.append(coord[2])
             atom_number.append(atom["number"])
+        # add edges (bonds) to plot, the bond properties are saved as custom hover data
+        # every edge is included as separate trace to make them separately accessible for the hover events
         for j, (start, end) in enumerate(cell["edges"]):
             start = np.dot(cart_crystal_axis_matrix, start)
             end = np.dot(cart_crystal_axis_matrix, end)
@@ -425,11 +427,13 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
                     ]
                 )
             )
+        # collect axes data for the plot
         for start, end in cell["axes"]:
             axis_x += [start[0], end[0], None]
             axis_y += [start[1], end[1], None]
             axis_z += [start[2], end[2], None]
 
+    # add axes of primitive cells to plot
     axes_trace = go.Scatter3d(
         x=axis_x,
         y=axis_y,
@@ -438,9 +442,9 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
         hoverinfo="none",
         line=dict(color="grey", width=1)
     )
-
     fig.add_trace(axes_trace)
 
+    # add nodes (atoms) with color depending on element to plot
     node_trace = go.Scatter3d(
         x=node_x,
         y=node_y,
@@ -455,10 +459,8 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
             line=dict(color="rgb(50,50,50)", width=0.5),
         ),
     )
-
     fig.add_trace(node_trace)
 
-    # fig.show()
     return fig
 
 
