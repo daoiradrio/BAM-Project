@@ -1,178 +1,36 @@
-from main import UnitCell
-from dash import Dash, dcc, html, Input, Output
+import os
+
 import plotly.graph_objs as go
-import numpy as np
 
-from tryout import plotfig
-
-
-
-def plot(cell: UnitCell) -> go.Figure:
-    atom_number = []
-
-    node_x = []
-    node_y = []
-    node_z = []
-
-    axis_x = []
-    axis_y = []
-    axis_z = []
-    axes = []
-
-    axis = dict(
-        showbackground=False,
-        showline=False,
-        zeroline=False,
-        showgrid=False,
-        showticklabels=False,
-        title="",
-        showspikes=False
-    )
-
-    layout = go.Layout(
-        showlegend=False,
-        scene=dict(
-            xaxis=dict(axis),
-            yaxis=dict(axis),
-            zaxis=dict(axis),
-        ),
-        margin=dict(
-            l=20,
-            r=20,
-            b=10,
-            t=10,
-        ),
-        hovermode="closest",
-        #height=850
-    )
-
-    fig = go.Figure(layout=layout)
-
-    for i, edge in enumerate(cell.edges):
-        start, end = edge
-        fig.add_trace(
-            go.Scatter3d(
-                x=[start[0], end[0], None],
-                y=[start[1], end[1], None],
-                z=[start[2], end[2], None],
-                mode="lines",
-                line={
-                    "width": 2,
-                    "color": "black"
-                },
-                hoverinfo="none",
-                customdata=(
-                    (i, i, i, i, i), # bonding_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc
-                    (i, i, i, i, i), # bonding_length, ICOBI, ICOOP, ICOHP, ICOHP_bonding_perc
-                    None
-                )
-            )
-        )
-
-    origin = np.array([0, 0, 0])
-    axes.append((origin, cell.x_axis))
-    axes.append((origin, cell.y_axis))
-    axes.append((origin, cell.z_axis))
-    axes.append((cell.y_axis, cell.y_axis + cell.x_axis))
-    # x-axis parallel in z-direction
-    axes.append((cell.z_axis, cell.z_axis + cell.x_axis))
-    # x-axis parallel in yz-direction
-    axes.append((cell.y_axis + cell.z_axis, cell.y_axis + cell.z_axis + cell.x_axis))
-    # y-axis parallel in x-direction
-    axes.append((cell.x_axis, cell.x_axis + cell.y_axis))
-    # y-axis parallel in z-direction
-    axes.append((cell.z_axis, cell.z_axis + cell.y_axis))
-    # y-axis parallel in xz-direction
-    axes.append((cell.x_axis + cell.z_axis, cell.x_axis + cell.z_axis + cell.y_axis))
-    # z-axis parallel in x-direction
-    axes.append((cell.x_axis, cell.x_axis + cell.z_axis))
-    # z-axis parallel in y-direction
-    axes.append((cell.y_axis, cell.y_axis + cell.z_axis))
-    # z-axis parallel in xy-direction
-    axes.append((cell.x_axis + cell.y_axis, cell.x_axis + cell.y_axis + cell.z_axis))
-
-    for axis in axes:
-        start, end = axis
-        axis_x += [start[0], end[0], None]
-        axis_y += [start[1], end[1], None]
-        axis_z += [start[2], end[2], None]
-
-    axes_trace = go.Scatter3d(
-        x=axis_x,
-        y=axis_y,
-        z=axis_z,
-        mode="lines",
-        hoverinfo="none",
-        line=dict(color="grey", width=1)
-    )
-
-    fig.add_trace(axes_trace)
-
-    for i, coord in enumerate(cell.coords):
-        node_x.append(coord[0])
-        node_y.append(coord[1])
-        node_z.append(coord[2])
-        atom_number.append(cell.atoms[i]["number"])
-
-    node_trace = go.Scatter3d(
-        x=node_x,
-        y=node_y,
-        z=node_z,
-        mode="markers",
-        hoverinfo="none",
-        marker=dict(
-            symbol="circle",
-            size=6,
-            color=atom_number,
-            colorscale="Viridis",
-            line=dict(color="rgb(50,50,50)", width=0.5),
-        ),
-    )
-
-    fig.add_trace(node_trace)
-
-    return fig
+from helper import get_structure_plot, get_dummy_cohp_plot, get_chosen_structure
+from dash import Dash, dcc, html, Input, Output
 
 
 
-#dir = "mp-10143"
-#s = get_conventional_structure(dir)
-#cell = UnitCell(s)
-#fig = plot(cell)
+dir = "mp-10143/"
+#dir = "mp-510401"
+#dir = "mp-2384"
+path = get_chosen_structure(dir)
+#path = get_random_structure()
+path_to_poscar = os.path.join(path, "POSCAR")
+path_to_charge = os.path.join(path, "CHARGE.lobster")
+path_to_icobilist = os.path.join(path, "ICOBILIST.lobster")
+path_to_icooplist = os.path.join(path, "ICOOPLIST.lobster")
+path_to_icohplist = os.path.join(path, "ICOHPLIST.lobster")
+path_to_cohpcar = os.path.join(path, "COHPCAR.lobster")
+path_to_madelung = os.path.join(path, "MadelungEnergies.lobster")
 
-axis = dict(
-    showbackground=False,
-    showline=False,
-    zeroline=False,
-    showgrid=False,
-    showticklabels=False,
-    visible=False,
-    title="",
-    showspikes=False
+fig = get_structure_plot(
+    path_to_poscar,
+    path_to_charge,
+    path_to_icobilist,
+    path_to_icooplist,
+    path_to_icohplist,
+    path_to_cohpcar,
+    path_to_madelung
 )
 
-layout = go.Layout(
-    showlegend=False,
-    scene=dict(
-        xaxis=axis,
-        yaxis=axis,
-    ),
-    margin=dict(
-        l=20,
-        r=20,
-        b=10,
-        t=10,
-    ),
-    height=440,
-    width=600,
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    xaxis=dict(visible=False),
-    yaxis=dict(visible=False)
-)
-
-cohp_plot = go.Figure(layout=layout)
-fig = plotfig
+cohp_plot = get_dummy_cohp_plot()
 
 
 app = Dash(__name__)
