@@ -189,11 +189,13 @@ def edge_hoverevent(hover_data):
     # COHP plot
     try:
         cohp_data, bond_length, icobi, icoop, icohp, icohp_bonding_perc = hover_data["points"][0]["customdata"]
-        bond_length = f"{bond_length} {chr(8491)}"
-        #icobi = ohne Einheit
-        #icoop = Anteil Elektronen??
-        icohp = f"{icohp} eV"
-        icohp_bonding_perc = f"{icohp_bonding_perc*100} %"
+        bond_length = "{:.5f}".format(bond_length) + " " + chr(8491)
+        icobi = "{:.5f}".format(icobi)
+        icoop = "{:.5f}".format(icoop) # Einheit "Anteil Elektronen"?
+        icohp = "{:.5f}".format(icohp) + " eV"
+        icohp_bonding_perc = "{:.1f}".format(icohp_bonding_perc*100) + " %"
+
+        x_range = [min(cohp_data[0]) - 0.25, max(cohp_data[0]) + 0.25]
 
         cohp.add_trace(
             go.Scatter(
@@ -204,7 +206,7 @@ def edge_hoverevent(hover_data):
         )
         cohp.add_trace(
             go.Scatter(
-                x=[min(cohp_data[0]), max(cohp_data[0])],
+                x=x_range,
                 y=[0, 0],
                 mode="lines",
                 line=dict(
@@ -218,19 +220,30 @@ def edge_hoverevent(hover_data):
         cohp.update_xaxes(
             visible=True,
             title="COHP",
+            title_font_color="black",
             showline=True,
             linewidth=1.5,
             linecolor="black",
             zeroline=True,
             zerolinewidth=1,
             zerolinecolor="black",
+            tickmode="linear",
+            ticks="outside",
+            dtick=0.25,
+            range=x_range,
+            tickfont={"color": "black"}
         )
         cohp.update_yaxes(
             visible=True,
             title="E - Efermi [eV]",
+            title_font_color="black",
             showline=True,
             linewidth=1.5,
             linecolor="black",
+            tickmode="linear",
+            ticks="outside",
+            dtick=2.0,
+            tickfont={"color": "black"}
         )
     # if hover data does not contain edge/bond properties leave data container and COHP plot empty
     except:
