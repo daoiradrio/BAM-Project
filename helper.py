@@ -188,8 +188,9 @@ def get_primitive_supercell(
         shift[i] = 1.0
         new_cells = []
         for cell in cells:
-            # repeat every cell x_min/y_min/z_min times in negative direction
-            for j in range(dim_min, 0):
+            # repeat every cell x_min/y_min/z_min times in negative direction and x_max/y_max/z_max times in
+            # positive direction
+            for j in [k for k in range(dim_min, dim_max+1) if k != 0]:
                 new_cell = {
                     "atoms": {},
                     "axes": [],
@@ -210,60 +211,17 @@ def get_primitive_supercell(
                     new_cell["axes"].append((new_start, new_end))
                 # add edges (bonds) and edge properties (bond properties) to new cell
                 # (the latter based on equivalence)
-                for k, (start, end) in enumerate(cell["edges"]):
+                for l, (start, end) in enumerate(cell["edges"]):
                     new_start = start + j * shift
                     new_end = end + j * shift
                     new_cell["edges"].append((new_start, new_end))
-                    new_cell["edge_properties"]["cohp_plot"].append(cell["edge_properties"]["cohp_plot"][k])
-                    new_cell["edge_properties"]["bond_length"].append(cell["edge_properties"]["bond_length"][k])
-                    new_cell["edge_properties"]["icobi"].append(cell["edge_properties"]["icobi"][k])
-                    new_cell["edge_properties"]["icoop"].append(cell["edge_properties"]["icoop"][k])
-                    new_cell["edge_properties"]["icohp"].append(cell["edge_properties"]["icohp"][k])
+                    new_cell["edge_properties"]["cohp_plot"].append(cell["edge_properties"]["cohp_plot"][l])
+                    new_cell["edge_properties"]["bond_length"].append(cell["edge_properties"]["bond_length"][l])
+                    new_cell["edge_properties"]["icobi"].append(cell["edge_properties"]["icobi"][l])
+                    new_cell["edge_properties"]["icoop"].append(cell["edge_properties"]["icoop"][l])
+                    new_cell["edge_properties"]["icohp"].append(cell["edge_properties"]["icohp"][l])
                     new_cell["edge_properties"]["icohp_bonding_perc"].append(
-                        cell["edge_properties"]["icohp_bonding_perc"][k]
-                    )
-                # add nodes (atoms) to new cell as coordinates
-                for atom in cell["atoms"]:
-                    new_cell["atoms"][num_atoms] = {
-                        "element": atom["element"],
-                        "number": atom["number"],
-                        "frac_coord": atom["frac_coord"] + j * shift,
-                    }
-                    num_atoms += 1
-                new_cells.append(new_cell)
-            # repeat every cell x_max/y_max/z_max times in positive direction
-            for j in range(1, dim_max + 1):
-                new_cell = {
-                    "atoms": {},
-                    "axes": [],
-                    "edges": [],
-                    "edge_properties": {
-                        "cohp_plot": [],
-                        "bond_length": [],
-                        "icobi": [],
-                        "icoop": [],
-                        "icohp": [],
-                        "icohp_bonding_perc": []
-                    },
-                }
-                # add axes to new cell
-                for start, end in cell["axes"]:
-                    new_start = start + np.dot(cart_crystal_axis_matrix, j * shift)
-                    new_end = end + np.dot(cart_crystal_axis_matrix, j * shift)
-                    new_cell["axes"].append((new_start, new_end))
-                # add edges (bonds) and edge properties (bond properties) to new cell
-                # (the latter based on equivalence)
-                for k, (start, end) in enumerate(cell["edges"]):
-                    new_start = start + j * shift
-                    new_end = end + j * shift
-                    new_cell["edges"].append((new_start, new_end))
-                    new_cell["edge_properties"]["cohp_plot"].append(cell["edge_properties"]["cohp_plot"][k])
-                    new_cell["edge_properties"]["bond_length"].append(cell["edge_properties"]["bond_length"][k])
-                    new_cell["edge_properties"]["icobi"].append(cell["edge_properties"]["icobi"][k])
-                    new_cell["edge_properties"]["icoop"].append(cell["edge_properties"]["icoop"][k])
-                    new_cell["edge_properties"]["icohp"].append(cell["edge_properties"]["icohp"][k])
-                    new_cell["edge_properties"]["icohp_bonding_perc"].append(
-                        cell["edge_properties"]["icohp_bonding_perc"][k]
+                        cell["edge_properties"]["icohp_bonding_perc"][l]
                     )
                 # add nodes (atoms) to new cell as coordinates
                 for atom in cell["atoms"].values():

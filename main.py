@@ -1,816 +1,307 @@
 import os
-import random
 
 import plotly.graph_objs as go
-import plotly.express as px
-import numpy as np
-import networkx as nx
 
-from structuregraph_helpers.create import get_structure_graph
-from plotly.graph_objs import Figure
-from pymatgen.analysis.graphs import Structure, StructureGraph
-from structuregraph_helpers.create import get_structure_graph
-from pymatgen.analysis.structure_analyzer import SpacegroupAnalyzer
-from random import randrange
-from itertools import permutations, product, combinations_with_replacement
-from pymatgen.analysis.local_env import (
-    BrunnerNN_relative,
-    CrystalNN,
-    CutOffDictNN,
-    EconNN,
-    MinimumDistanceNN,
-    NearNeighbors,
-    VoronoiNN,
+from helper import get_structure_plot, get_dummy_cohp_plot, get_chosen_structure
+from dash import Dash, dcc, html, Input, Output
+
+
+
+# directory of structure to be visualized
+dir = "mp-10143/"
+#dir = "mp-510401"
+#dir = "mp-2384"
+
+# get path of chosen structure
+path = get_chosen_structure(dir)
+#path = get_random_structure()
+
+# get necessary file paths
+path_to_poscar = os.path.join(path, "POSCAR")
+path_to_charge = os.path.join(path, "CHARGE.lobster")
+path_to_icobilist = os.path.join(path, "ICOBILIST.lobster")
+path_to_icooplist = os.path.join(path, "ICOOPLIST.lobster")
+path_to_icohplist = os.path.join(path, "ICOHPLIST.lobster")
+path_to_cohpcar = os.path.join(path, "COHPCAR.lobster")
+path_to_madelung = os.path.join(path, "MadelungEnergies.lobster")
+
+# structure plot as Figure object
+fig = get_structure_plot(
+    path_to_poscar,
+    path_to_charge,
+    path_to_icobilist,
+    path_to_icooplist,
+    path_to_icohplist,
+    path_to_cohpcar,
+    path_to_madelung
+)
+
+# Figure plot with empty plot for creating COHP plot
+cohp_plot = get_dummy_cohp_plot()
+
+
+app = Dash(__name__)
+
+app.layout = html.Div([
+        # container for structure plot
+        html.Div(
+            # container for drawing line around section of structure plot
+            html.Div(
+                # structure plot as Figure object
+                dcc.Graph(
+                    id="structuregraph",
+                    figure=fig,
+                    clear_on_unhover=True,
+                ),
+                id="helper-container",
+            ),
+            className="container-class",
+            id="structuregraph-container",
+        ),
+        # helper container
+        html.Div(
+            # dummy for updating camera position of structure plot, not visible on screen
+            html.Pre(
+                id="helper"
+            ),
+        ),
+        # container for COHP plot
+        html.Div(
+            # COHP plot as Figure object
+            dcc.Graph(
+                id="plot",
+                figure=cohp_plot,
+            ),
+            className="container-class",
+            id="plot-container",
+        ),
+        # container for bond property data
+        html.Div(
+            # bond properties arranged as table
+            html.Table([
+                html.Tr([
+                    html.Td(
+                        "Bond Length",
+                        className="property-name"
+                    ),
+                    html.Td(
+                        id="bond_length",
+                        className="property-data"
+                    )
+                ]),
+                html.Tr([
+                    html.Td(
+                        "ICOBI",
+                        className="property-name"
+                    ),
+                    html.Td(
+                        id="ICOBI",
+                        className = "property-data"
+                    )
+                ]),
+                html.Tr([
+                    html.Td(
+                        "ICOOP",
+                        className="property-name"
+                    ),
+                    html.Td(
+                        id="ICOOP",
+                        className="property-data"
+                    )
+                ]),
+                html.Tr([
+                    html.Td(
+                        "ICOHP",
+                        className="property-name"
+                    ),
+                    html.Td(
+                        id="ICOHP",
+                        className="property-data"
+                    )
+                ]),
+                html.Tr([
+                    html.Td(
+                        "ICOHP Bonding Perc",
+                        className="property-name"
+                    ),
+                    html.Td(
+                        id="ICOHP_bonding_perc",
+                        className="property-data"
+                    )
+                ]),
+            ]),
+            className="container-class",
+            id="data-container",
+        ),
+    ],
+    id="container",
 )
 
 
 
-class UnitCell:
-
-    def __init__(self, structure: Structure):
-        self.testgraph = px.line(x=[None], y=[None])
-        self.structuregraph = get_structure_graph(structure, method="minimaldistance")
-        self.number_individual_atoms = len(structure.frac_coords)
-        self.a = structure.lattice.a
-        self.b = structure.lattice.b
-        self.c = structure.lattice.c
-        self.alpha = structure.lattice.alpha
-        self.beta = structure.lattice.beta
-        self.gamma = structure.lattice.gamma
-
-        self.x_axis = np.array(
-            [
-                self.a,
-                0,
-                0
-            ]
-        )
-        self.y_axis = np.array(
-            [
-                self.b * np.cos(np.deg2rad(self.gamma)),
-                self.b * np.sin(np.deg2rad(self.gamma)),
-                0
-            ]
-        )
-        self.z_axis = np.array(
-            [
-                self.c * np.cos(np.deg2rad(self.beta)),
-                self.c * np.cos(np.deg2rad(self.alpha)),
-                self.c * np.sin(np.deg2rad(self.gamma))
-            ]
-        )
-
-        self.frac_coords = list(structure.frac_coords.copy())
-        self.cart_crystal_axis_mat = np.stack((self.x_axis, self.y_axis, self.z_axis), axis=-1)
-        self.coords = []
-        self.atoms = dict()
-        self.eq_atoms = dict()
-        new_coords = []
-        for i, coord in enumerate(structure.frac_coords.copy()):
-            self.coords.append(np.dot(self.cart_crystal_axis_mat, coord))
-            self.atoms[i] = dict()
-            self.atoms[i]["element"] = structure[i].specie
-            self.atoms[i]["number"] = structure[i].specie.number
-            self.eq_atoms[i] = []
-        """
-            indices0 = []
-            indices1 = []
-            for j, c in enumerate(coord):
-                if c < 0.01:
-                    indices0.append(j)
-                elif c > 0.99:
-                    indices1.append(j)
-            n0 = len(indices0)
-            n1 = len(indices1)
-            add0 = [np.zeros(shape=3)]
-            add1 = [np.zeros(shape=3)]
-            for j in range(1, n0 + 1):
-                v = [1] * j + [0] * (n0 - n1 - j)
-                ps0 = set(permutations(v))
-                for p0 in ps0:
-                    a0 = np.zeros(shape=3)
-                    for index, permutation in zip(indices0, p0):
-                        a0[index] = permutation
-                    add0.append(a0)
-            for j in range(1, n1 + 1):
-                v = [-1] * j + [0] * (n1 - n0 - j)
-                ps1 = set(permutations(v))
-                for p1 in ps1:
-                    a1 = np.zeros(shape=3)
-                    for index, permutation in zip(indices1, p1):
-                        a1[index] = permutation
-                    add1.append(a1)
-            adds = product(add0, add1)
-            for a0, a1 in adds:
-                if np.linalg.norm(a0 + a1) > 0:
-                    new_frac_coord = coord.copy() + a0 + a1
-                    self.frac_coords.append(new_frac_coord)
-                    new_coord = np.array(coord.copy()) + a0 + a1
-                    new_coord = np.dot(self.cart_crystal_axis_mat, new_coord)
-                    new_coords.append(new_coord)
-                    m = self.number_individual_atoms - 1 + len(new_coords)
-                    self.atoms[m] = dict()
-                    self.atoms[m]["element"] = structure[i].specie
-                    self.atoms[m]["number"] = structure[i].specie.number
-                    self.eq_atoms[i].append(m)
-        self.coords += new_coords
-        """
-
-        self.edges = []
-        limit = 0.01
-        for node1, node2, data in self.structuregraph.graph.edges(data=True):
-            start = self.frac_coords[node1]
-            end = self.frac_coords[node2] + data["to_jimage"]
-            start_coord = np.dot(self.cart_crystal_axis_mat, start)
-            end_coord = np.dot(self.cart_crystal_axis_mat, end)
-            d0 = np.linalg.norm(start_coord - end_coord)
-            if (-limit <= end[0] <= limit+1) and \
-               (-limit <= end[1] <= limit+1) and \
-               (-limit <= end[2] <= limit+1):
-                self.edges.append((start_coord, end_coord))
-        """
-            for eq_atom1 in self.eq_atoms[node1]:
-                shift = self.frac_coords[eq_atom1] - self.frac_coords[node1]
-                new_end = end + shift
-                if (-limit <= new_end[0] <= limit+1) and \
-                   (-limit <= new_end[1] <= limit+1) and \
-                   (-limit <= new_end[2] <= limit+1):
-                    start_coord = self.coords[eq_atom1]
-                    end_coord = np.dot(self.cart_crystal_axis_mat, new_end)
-                    d1 = np.linalg.norm(start_coord - end_coord)
-                    if abs(d0 - d1) <= limit:
-                        self.edges.append((start_coord, end_coord))
-        """
-        # TODO: Müssen hier noch die anderen jeweils äquivalenten Atome durchgegangen werden, oder reicht das schon?
-
-
-    def plot_cell(self):
-        atom_number = []
-
-        node_x = []
-        node_y = []
-        node_z = []
-
-        axis_x = []
-        axis_y = []
-        axis_z = []
-        axes = []
-
-        edge_x = []
-        edge_y = []
-        edge_z = []
-
-        origin = np.array([0, 0, 0])
-        axes.append((origin, self.x_axis))
-        axes.append((origin, self.y_axis))
-        axes.append((origin, self.z_axis))
-        axes.append((self.y_axis, self.y_axis + self.x_axis))
-        # x-axis parallel in z-direction
-        axes.append((self.z_axis, self.z_axis + self.x_axis))
-        # x-axis parallel in yz-direction
-        axes.append((self.y_axis + self.z_axis, self.y_axis + self.z_axis + self.x_axis))
-        # y-axis parallel in x-direction
-        axes.append((self.x_axis, self.x_axis + self.y_axis))
-        # y-axis parallel in z-direction
-        axes.append((self.z_axis, self.z_axis + self.y_axis))
-        # y-axis parallel in xz-direction
-        axes.append((self.x_axis + self.z_axis, self.x_axis + self.z_axis + self.y_axis))
-        # z-axis parallel in x-direction
-        axes.append((self.x_axis, self.x_axis + self.z_axis))
-        # z-axis parallel in y-direction
-        axes.append((self.y_axis, self.y_axis + self.z_axis))
-        # z-axis parallel in xy-direction
-        axes.append((self.x_axis + self.y_axis, self.x_axis + self.y_axis + self.z_axis))
-        
-        for axis in axes:
-            start, end = axis
-            axis_x += [start[0], end[0], None]
-            axis_y += [start[1], end[1], None]
-            axis_z += [start[2], end[2], None]
-
-        for i, coord in enumerate(self.coords):
-            node_x.append(coord[0])
-            node_y.append(coord[1])
-            node_z.append(coord[2])
-            atom_number.append(self.atoms[i]["number"])
-
-        #for start, end in self.edges:
-        #    start_coord = self.coords[start]
-        #    end_coord = self.coords[end]
-        #    edge_x += [start_coord[0], end_coord[0], None]
-        #    edge_y += [start_coord[1], end_coord[1], None]
-        #    edge_z += [start_coord[2], end_coord[2], None]
-
-        for start, end in self.edges:
-            edge_x += [start[0], end[0], None]
-            edge_y += [start[1], end[1], None]
-            edge_z += [start[2], end[2], None]
-
-
-        trace0 = go.Scatter3d(
-            x=axis_x,
-            y=axis_y,
-            z=axis_z,
-            mode="lines",
-            hoverinfo="none",
-            line=dict(color="grey", width=1)
-        )
-
-        trace1 = go.Scatter3d(
-            x=node_x,
-            y=node_y,
-            z=node_z,
-            mode="markers",
-            hoverinfo="none",
-            marker=dict(
-                symbol="circle",
-                size=6,
-                color=atom_number,
-                colorscale="Viridis",
-                line=dict(color="rgb(50,50,50)", width=0.5),
-            ),
-        )
-
-        trace2 = go.Scatter3d(
-            x=edge_x,
-            y=edge_y,
-            z=edge_z,
-            mode="lines",
-            customdata=None,
-            hoverinfo="none",
-            line=dict(color="black", width=2),
-        )
-        
-        axis = dict(
-            showbackground=False,
-            showline=False,
-            zeroline=False,
-            showgrid=False,
-            showticklabels=False,
-            title="",
-            showspikes=False
-        )
-
-        layout = go.Layout(
-            showlegend=False,
-            scene=dict(
-                xaxis=dict(axis),
-                yaxis=dict(axis),
-                zaxis=dict(axis),
-            ),
-            #margin=dict(t=100),
-            margin=dict(
-                l=20,
-                r=20,
-                b=10,
-                t=10,
-            ),
-            hovermode="closest",
-            height=850
-        )
-
-        data = []
-        data.append(trace0)
-        data.append(trace1)
-        data.append(trace2)
-
-        fig = go.Figure(data=data, layout=layout)
-        fig.show()
-        #return fig
-
-
-    def plot_extended_cell(self, add_cells = None) -> None:
-        if len(add_cells) == 0 or add_cells is None:
-            self.plot_cell()
-            return
-
-        atom_number = []
-
-        node_x = []
-        node_y = []
-        node_z = []
-
-        axis_x = []
-        axis_y = []
-        axis_z = []
-        axes = []
-
-        edge_x = []
-        edge_y = []
-        edge_z = []
-
-        origin = np.array([0, 0, 0])
-        axes.append((origin, self.x_axis))
-        axes.append((origin, self.y_axis))
-        axes.append((origin, self.z_axis))
-        axes.append((self.y_axis, self.y_axis + self.x_axis))
-        # x-axis parallel in z-direction
-        axes.append((self.z_axis, self.z_axis + self.x_axis))
-        # x-axis parallel in yz-direction
-        axes.append((self.y_axis + self.z_axis, self.y_axis + self.z_axis + self.x_axis))
-        # y-axis parallel in x-direction
-        axes.append((self.x_axis, self.x_axis + self.y_axis))
-        # y-axis parallel in z-direction
-        axes.append((self.z_axis, self.z_axis + self.y_axis))
-        # y-axis parallel in xz-direction
-        axes.append((self.x_axis + self.z_axis, self.x_axis + self.z_axis + self.y_axis))
-        # z-axis parallel in x-direction
-        axes.append((self.x_axis, self.x_axis + self.z_axis))
-        # z-axis parallel in y-direction
-        axes.append((self.y_axis, self.y_axis + self.z_axis))
-        # z-axis parallel in xy-direction
-        axes.append((self.x_axis + self.y_axis, self.x_axis + self.y_axis + self.z_axis))
-
-        for axis in axes:
-            start, end = axis
-            axis_x += [start[0], end[0], None]
-            axis_y += [start[1], end[1], None]
-            axis_z += [start[2], end[2], None]
-            for add_cell in add_cells:
-                new_start = start.copy()
-                new_end = end.copy()
-                n = add_cell[0] + 1
-                for i in range(1, n):
-                    a = add_cell[1]
-                    b = add_cell[2]
-                    c = add_cell[3]
-                    new_start = new_start + a * self.x_axis + b * self.y_axis + c * self.z_axis
-                    new_end = new_end + a * self.x_axis + b * self.y_axis + c * self.z_axis
-                    axis_x += [new_start[0], new_end[0], None]
-                    axis_y += [new_start[1], new_end[1], None]
-                    axis_z += [new_start[2], new_end[2], None]
-
-        for i, coord in enumerate(self.coords):
-            node_x.append(coord[0])
-            node_y.append(coord[1])
-            node_z.append(coord[2])
-            atom_number.append(self.atoms[i]["number"])
-            for add_cell in add_cells:
-                new_coord = coord.copy()
-                n = add_cell[0] + 1
-                for j in range(1, n):
-                    a = add_cell[1]
-                    b = add_cell[2]
-                    c = add_cell[3]
-                    new_coord = new_coord + a * self.x_axis + b * self.y_axis + c * self.z_axis
-                    node_x.append(new_coord[0])
-                    node_y.append(new_coord[1])
-                    node_z.append(new_coord[2])
-                    atom_number.append(self.atoms[i]["number"])
-
-        for start, end in self.edges:
-            edge_x += [start[0], end[0], None]
-            edge_y += [start[1], end[1], None]
-            edge_z += [start[2], end[2], None]
-
-        trace0 = go.Scatter3d(
-            x=axis_x,
-            y=axis_y,
-            z=axis_z,
-            mode="lines",
-            hoverinfo="none",
-            line=dict(color="lightgrey", width=1)
-        )
-
-        trace1 = go.Scatter3d(
-            x=node_x,
-            y=node_y,
-            z=node_z,
-            mode="markers",
-            hoverinfo="none",
-            marker=dict(
-                symbol="circle",
-                size=6,
-                color=atom_number,
-                colorscale="Viridis",
-                line=dict(color="rgb(50,50,50)", width=0.5),
-            ),
-        )
-
-        trace2 = go.Scatter3d(
-            x=edge_x,
-            y=edge_y,
-            z=edge_z,
-            mode="lines",
-            hoverinfo="none",
-            line=dict(color="black", width=2),
-        )
-
-        axis = dict(
-            showbackground=False,
-            showline=False,
-            zeroline=False,
-            showgrid=False,
-            showticklabels=False,
-            title="",
-            showspikes=False
-        )
-
-        layout = go.Layout(
-            showlegend=False,
-            scene=dict(
-                xaxis=dict(axis),
-                yaxis=dict(axis),
-                zaxis=dict(axis),
-            ),
-            margin=dict(t=100),
-            hovermode="closest",
-        )
-
-        data = []
-        data.append(trace0)
-        data.append(trace1)
-        data.append(trace2)
-
-        fig = go.Figure(data=data, layout=layout)
-        fig.show()
-
-
-    def plot_supercell(self, scale: int = None)-> None:
-        if scale == None:
-            self.plot_cell()
-            return
-
-        atom_number = []
-
-        node_x = []
-        node_y = []
-        node_z = []
-
-        axis_x = []
-        axis_y = []
-        axis_z = []
-        axes = []
-
-        origin = np.array([0, 0, 0])
-        axes.append((origin, self.x_axis))
-        axes.append((origin, self.y_axis))
-        axes.append((origin, self.z_axis))
-        axes.append((self.y_axis, self.y_axis + self.x_axis))
-        # x-axis parallel in z-direction
-        axes.append((self.z_axis, self.z_axis + self.x_axis))
-        # x-axis parallel in yz-direction
-        axes.append((self.y_axis + self.z_axis, self.y_axis + self.z_axis + self.x_axis))
-        # y-axis parallel in x-direction
-        axes.append((self.x_axis, self.x_axis + self.y_axis))
-        # y-axis parallel in z-direction
-        axes.append((self.z_axis, self.z_axis + self.y_axis))
-        # y-axis parallel in xz-direction
-        axes.append((self.x_axis + self.z_axis, self.x_axis + self.z_axis + self.y_axis))
-        # z-axis parallel in x-direction
-        axes.append((self.x_axis, self.x_axis + self.z_axis))
-        # z-axis parallel in y-direction
-        axes.append((self.y_axis, self.y_axis + self.z_axis))
-        # z-axis parallel in xy-direction
-        axes.append((self.x_axis + self.y_axis, self.x_axis + self.y_axis + self.z_axis))
-
-        combs = combinations_with_replacement([-1, 0, 1], 3)
-        perms = []
-        for comb in combs:
-            ps = set(permutations(comb))
-            for p in ps:
-                perms.append(p)
-
-        for axis in axes:
-            start, end = axis
-            axis_x += [start[0], end[0], None]
-            axis_y += [start[1], end[1], None]
-            axis_z += [start[2], end[2], None]
-            for x, y, z in perms:
-                new_axis = axis + (scale-1) * (x * self.x_axis + y * self.y_axis + z * self.z_axis)
-                start, end = new_axis
-                axis_x += [start[0], end[0], None]
-                axis_y += [start[1], end[1], None]
-                axis_z += [start[2], end[2], None]
-
-        for i, coord in enumerate(self.coords):
-            node_x.append(coord[0])
-            node_y.append(coord[1])
-            node_z.append(coord[2])
-            atom_number.append(self.atoms[i]["number"])
-            for x, y, z in perms:
-                new_coord = coord + (scale-1) * (x * self.x_axis + y * self.y_axis + z * self.z_axis)
-                node_x.append(new_coord[0])
-                node_y.append(new_coord[1])
-                node_z.append(new_coord[2])
-                atom_number.append(self.atoms[i]["number"])
-
-        trace0 = go.Scatter3d(
-            x=axis_x,
-            y=axis_y,
-            z=axis_z,
-            mode="lines",
-            hoverinfo="none",
-            line=dict(color="lightgrey", width=1)
-        )
-
-        trace1 = go.Scatter3d(
-            x=node_x,
-            y=node_y,
-            z=node_z,
-            mode="markers",
-            hoverinfo="none",
-            marker=dict(
-                symbol="circle",
-                size=6,
-                color=atom_number,
-                colorscale="Viridis",
-                line=dict(color="rgb(50,50,50)", width=0.5),
-            ),
-        )
-
-        axis = dict(
-            showbackground=False,
-            showline=False,
-            zeroline=False,
-            showgrid=False,
-            showticklabels=False,
-            title="",
-            showspikes=False
-        )
-
-        layout = go.Layout(
-            showlegend=False,
-            scene=dict(
-                xaxis=dict(axis),
-                yaxis=dict(axis),
-                zaxis=dict(axis),
-            ),
-            margin=dict(t=100),
-            hovermode="closest",
-        )
-
-        data = []
-        data.append(trace0)
-        data.append(trace1)
-
-        fig = go.Figure(data=data, layout=layout)
-        fig.show()
-
-
-
-def plot_structure_graph(sg: StructureGraph) -> Figure:
-    node_x = []
-    node_y = []
-    node_z = []
-
-    edge_x = []
-    edge_y = []
-    edge_z = []
-
-    axis_x = []
-    axis_y = []
-    axis_z = []
-
-    atom_number = []
-
-    # setup for axes of unit cell
-    a = sg.structure.lattice.a
-    b = sg.structure.lattice.b
-    c = sg.structure.lattice.c
-    alpha = sg.structure.lattice.alpha
-    beta = sg.structure.lattice.beta
-    gamma = sg.structure.lattice.gamma
-    alpha_rad = np.deg2rad(alpha)
-    beta_rad = np.deg2rad(beta)
-    gamma_rad = np.deg2rad(gamma)
-    axes = []
-    origin = np.array([0, 0, 0])
-
-    # x-axis
-    x = np.array([a, 0, 0])
-    axes.append((origin, x))
-    # y-axis
-    y = np.array([b * np.cos(gamma_rad), b * np.sin(gamma_rad), 0])
-    axes.append((origin, y))
-    # z-axis
-    z = np.array([c * np.cos(beta_rad), c * np.cos(alpha_rad), c * np.sin(gamma_rad)])
-    axes.append((origin, z))
-    # x-axis parallel in y-direction
-    axes.append((y, y+x))
-    # x-axis parallel in z-direction
-    axes.append((z, z+x))
-    # x-axis parallel in yz-direction
-    axes.append((y+z, y+z+x))
-    # y-axis parallel in x-direction
-    axes.append((x, x+y))
-    # y-axis parallel in z-direction
-    axes.append((z, z+y))
-    # y-axis parallel in xz-direction
-    axes.append((x+z, x+z+y))
-    # z-axis parallel in x-direction
-    axes.append((x, x+z))
-    # z-axis parallel in y-direction
-    axes.append((y, y+z))
-    # z-axis parallel in xy-direction
-    axes.append((x+y, x+y+z))
-
-    for axis in axes:
-        start, end = axis
-        axis_x += [start[0], end[0], None]
-        axis_y += [start[1], end[1], None]
-        axis_z += [start[2], end[2], None]
-
-    coords = sg.structure.frac_coords
-    axis_trans_mat = np.stack((x, y, z), axis=-1)
-    edge_coords = []
-    for i, coord in enumerate(coords):
-        new_coord = np.dot(axis_trans_mat, coord)
-        node_x.append(new_coord[0])
-        node_y.append(new_coord[1])
-        node_z.append(new_coord[2])
-        atom_number.append(sg.structure[i].specie.number)
-        #############################
-        edge_coords.append(new_coord)
-        #############################
-
-    for i, coord in enumerate(coords):
-        indices0 = []
-        indices1 = []
-        for j, c in enumerate(coord):
-            if c < 0.01:
-                indices0.append(j)
-            elif c > 0.99:
-                indices1.append(j)
-        n0 = len(indices0)
-        n1 = len(indices1)
-        add0 = [np.zeros(shape=3)]
-        add1 = [np.zeros(shape=3)]
-        """
-        # same functionality as below
-        for n, factor, indices, add in ((n0, 1, indices0, add0), (n1, -1, indices1, add1)):
-            for j in range(1, n + 1):
-                v = [factor] * j + [0] * (n0 - n1 - j)
-                ps = set(permutations(v))
-                for p in ps:
-                    a = np.zeros(shape=3)
-                    for index, permutation in zip(indices, p):
-                        a[index] = permutation
-                    add.append(a)
-        """
-        for j in range(1, n0 + 1):
-            v = [1] * j + [0] * (n0 - n1 - j)
-            ps0 = set(permutations(v))
-            for p0 in ps0:
-                a0 = np.zeros(shape=3)
-                for index, permutation in zip(indices0, p0):
-                    a0[index] = permutation
-                add0.append(a0)
-        for j in range(1, n1 + 1):
-            v = [-1] * j + [0] * (n1 - n0 - j)
-            ps1 = set(permutations(v))
-            for p1 in ps1:
-                a1 = np.zeros(shape=3)
-                for index, permutation in zip(indices1, p1):
-                    a1[index] = permutation
-                add1.append(a1)
-        adds = product(add0, add1)
-        for a0, a1 in adds:
-            if np.linalg.norm(a0 + a1) > 0:
-                new_coord = np.array(coord.copy()) + a0 + a1
-                new_coord = np.dot(axis_trans_mat, new_coord)
-                node_x.append(new_coord[0])
-                node_y.append(new_coord[1])
-                node_z.append(new_coord[2])
-                atom_number.append(sg.structure[i].specie.number)
-
-    for start, end, data in sg.graph.edges(data=True):
-        a, b, c = data["to_jimage"]
-        if a == 0 and b == 0 and c == 0:
-            start_c = edge_coords[start]
-            end_c = edge_coords[end] + data["to_jimage"]
-            edge_x += [start_c[0], end_c[0], None]
-            edge_y += [start_c[1], end_c[1], None]
-            edge_z += [start_c[2], end_c[2], None]
-
-    trace0 = go.Scatter3d(
-        x=axis_x,
-        y=axis_y,
-        z=axis_z,
-        mode="lines",
-        hoverinfo="none",
-        line=dict(color="lightgrey", width=1)
-    )
-
-
-    trace1 = go.Scatter3d(
-        x=edge_x,
-        y=edge_y,
-        z=edge_z,
-        mode="lines",
-        hoverinfo="none",
-        line=dict(color="black", width=2),
-    )
-
-
-    trace2 = go.Scatter3d(
-        x=node_x,
-        y=node_y,
-        z=node_z,
-        mode="markers",
-        hoverinfo="none",
-        marker=dict(
-            symbol="circle",
-            size=6,
-            color=atom_number,
-            colorscale="Viridis",
-            line=dict(color="rgb(50,50,50)", width=0.5),
-        ),
-    )
-
-    axis = dict(
-        showbackground=False,
-        showline=False,
-        zeroline=False,
-        showgrid=False,
-        showticklabels=False,
-        title="",
-        showspikes=False
-    )
-
+@app.callback(
+    Output("bond_length", "children"),
+    Output("ICOBI", "children"),
+    Output("ICOOP", "children"),
+    Output("ICOHP", "children"),
+    Output("ICOHP_bonding_perc", "children"),
+    Output("structuregraph", "figure"),
+    Output("plot", "figure"),
+    Input("structuregraph", "hoverData")
+)
+def edge_hoverevent(hover_data):
+    """
+    function for extracting bond properties from an edge that the user hovers over
+
+    :param hover_data: contains which is collected when hovering structure plot
+    :return: bond_length: if edge is hovered bond length data of hovered edge, else "-"
+             icobi: if edge is hovered icobi data of hovered edge, else "-"
+             icoop: if edge is hovered icoop data of hovered edge, else "-"
+             icohp: if edge is hovered icohp data of hovered edge, else "-"
+             icohp_bonding_perc: if edge is hovered icoph bonding percent of hovered egde, else "-"
+             fig: structure plot
+             cohp: if edge is hovered COHP plot of hovered edge as Figure object, else empty plot
+    """
+
+    # current camera position
+    global last_camera_position
+
+    # default layout of COHP plot
     layout = go.Layout(
         showlegend=False,
-        scene=dict(
-            xaxis=dict(axis),
-            yaxis=dict(axis),
-            zaxis=dict(axis),
+        margin=dict(
+            l=20,
+            r=20,
+            b=10,
+            t=10,
         ),
-        margin=dict(t=100),
-        hovermode="closest",
+        height=440,
+        width=600,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False)
     )
 
-    data = []
-    data.append(trace2)
-    data.append(trace1)
-    data.append(trace0)
+    cohp = go.Figure(layout=layout)
 
-    fig = go.Figure(data=data, layout=layout)
-    return fig
+    # if the hover data contains edge/bond properties, extract them and include them in the data container and
+    # COHP plot
+    try:
+        cohp_data, bond_length, icobi, icoop, icohp, icohp_bonding_perc = hover_data["points"][0]["customdata"]
+        bond_length = f"{bond_length} {chr(8491)}"
+        #icobi = ohne Einheit
+        #icoop = Anteil Elektronen??
+        icohp = f"{icohp} eV"
+        icohp_bonding_perc = f"{icohp_bonding_perc*100} %"
+
+        cohp.add_trace(
+            go.Scatter(
+                x=cohp_data[0],
+                y=cohp_data[1],
+                line=dict(color="red")
+            )
+        )
+        cohp.add_trace(
+            go.Scatter(
+                x=[min(cohp_data[0]), max(cohp_data[0])],
+                y=[0, 0],
+                mode="lines",
+                line=dict(
+                    width=1,
+                    color="black",
+                    dash="dash"
+                )
+            )
+        )
+
+        cohp.update_xaxes(
+            visible=True,
+            title="COHP",
+            showline=True,
+            linewidth=1.5,
+            linecolor="black",
+            zeroline=True,
+            zerolinewidth=1,
+            zerolinecolor="black",
+        )
+        cohp.update_yaxes(
+            visible=True,
+            title="E - Efermi [eV]",
+            showline=True,
+            linewidth=1.5,
+            linecolor="black",
+        )
+    # if hover data does not contain edge/bond properties leave data container and COHP plot empty
+    except:
+        cohp.add_trace(go.Scatter(x=[None], y=[None], line=dict(color="red")))
+        bond_length = "-"
+        icobi = "-"
+        icoop = "-"
+        icohp = "-"
+        icohp_bonding_perc = "-"
+
+    # set line width of edges to default
+    for trace in fig.data:
+        if "customdata" in trace:
+            trace["line"]["width"] = 2
+    # highlight the edge that the user hovers over (make it thicker)
+    if hover_data:
+        if "customdata" in hover_data["points"][0]:
+            trace_index = hover_data["points"][0]["curveNumber"]
+            fig.data[trace_index]["line"]["width"] = 5
+            fig.data[trace_index]["opacity"] = 1
+
+    # structure plot has to be reloaded everytime an edge is higlighted or de-highlighted, at every reloading the
+    # camera position/perspective of the structure plot is set to a standard position, which would lead to "jumping"
+    # of the plot, therefore set the camera position to last known position after reloading the plot
+    fig.update_layout(scene_camera=last_camera_position)
+
+    return bond_length, icobi, icoop, icohp, icohp_bonding_perc, fig, cohp
 
 
 
-def get_random_crystalsystem_example(crystalsystem: str) -> Structure:
-    filepath = os.path.join(os.path.expanduser("~/RAW_files_phonon/"), crystalsystem)
-    mps = os.listdir(filepath)
-    rand_index = randrange(len(mps))
-    mp = mps[rand_index]
-    filepath = os.path.join(filepath, mp, "POSCAR")
-    print(f"{crystalsystem.upper()} EXAMPLE: {mp}")
-    return Structure.from_file(filepath)
+@app.callback(Output("helper", "children"), Input("structuregraph", "relayoutData"))
+def get_current_camera_position(layout_data):
+    """
+    function for updating current camera position of structure plot
+
+    :param layout_data: contains data of new perspective on structure plot if it has been moved or zoomed into,
+           otherwise None
+    :return: None
+    """
+
+    # current camera position
+    global last_camera_position
+    # initializatin of new camera position
+    last_camera_position = dict()
+
+    # check if there is new layout data
+    if layout_data:
+        # if 3D plot has been moved/rotated/etc. update current camera position
+        try:
+            camera_data = layout_data["scene.camera"]
+            up_x = camera_data["up"]["x"]
+            up_y = camera_data["up"]["y"]
+            up_z = camera_data["up"]["z"]
+            center_x = camera_data["center"]["x"]
+            center_y = camera_data["center"]["y"]
+            center_z = camera_data["center"]["z"]
+            eye_x = camera_data["eye"]["x"]
+            eye_y = camera_data["eye"]["y"]
+            eye_z = camera_data["eye"]["z"]
+            last_camera_position = dict(
+                up=dict(x=up_x, y=up_y, z=up_z),
+                center=dict(x=center_x, y=center_y, z=center_z),
+                eye=dict(x=eye_x, y=eye_y, z=eye_z)
+            )
+        except:
+            pass
+    return None
 
 
-def get_structure(dir: str, crystalsystem: str = None) -> Structure:
-    if crystalsystem:
-        filepath = os.path.join(os.path.expanduser("~/RAW_files_phonon/"), crystalsystem, dir, "POSCAR")
-    else:
-        filepath = os.path.join(os.path.expanduser("~/automationresults"), dir, "POSCAR")
-    s = Structure.from_file(filepath)
-    return s
 
-
-def get_conventional_structure(dir: str, crystalsystem: str = None) -> Structure:
-    if crystalsystem:
-        filepath = os.path.join(os.path.expanduser("~/RAW_files_phonon/"), crystalsystem, dir, "POSCAR")
-    else:
-        filepath = os.path.join(os.path.expanduser("~/automationresults"), dir, "POSCAR")
-    s = Structure.from_file(filepath)
-    sga = SpacegroupAnalyzer(s)
-    cs = sga.get_conventional_standard_structure()
-    return cs
-
-
-
-#crystalsystem = "cubic"
-#s = get_random_crystalsystem_example(crystalsystem)
-#sga = SpacegroupAnalyzer(s)
-#s = sga.get_conventional_standard_structure()
-
-#dir = "mp-553374"
-#dir = "mp-997086"
-#dir = "mp-684690"
-#dir = "mp-7773"
-#dir = "mp-6450"
-
-#dir = "mp-567841"
-#dir = "mp-29398"
-#s = get_conventional_structure(dir, crystalsystem)
-
-dir = "mp-10143/"
-#dir = "mp-0/"
-#s = get_conventional_structure(dir)
-s = get_structure(dir)
-
-#sg = get_structure_graph(s, method="minimaldistance")
-
-#cell = UnitCell(s)
-#cell.plot_cell()
-#vecs = [
-#    [1, 1, 0, 0],
-#    [1, -1, 0, 0],
-#    [1, 0, 1, 0],
-#    [1, 0, -1, 0],
-#    [1, 0, 0, 1],
-#    [1, 0, 0, -1]
-#]
-#cell.plot_extended_cell(vecs)
-#cell.plot_supercell(2)
+if __name__ == '__main__':
+    # declare current camera position
+    global last_camera_position
+    app.run_server(debug=True)
