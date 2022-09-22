@@ -1,6 +1,7 @@
 import os
 import random
 import warnings
+import copy
 
 import numpy as np
 import plotly.graph_objs as go
@@ -29,15 +30,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
     cell = {
         "atoms": {},
         "axes": [],
-        "edges": [],
-        "edge_properties": {
-            "cohp_plot": [],
-            "bond_length": [],
-            "icobi": [],
-            "icoop": [],
-            "icohp": [],
-            "icohp_bonding_perc": []
-        },
+        "edges": {},
     }
     structure = lobstergraph.sg.structure
     num_atoms = len(structure.frac_coords)
@@ -97,30 +90,38 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
                 num_atoms += 1
 
     # iterate over all already existing nodes
-    for i, (node1, node2, data) in enumerate(lobstergraph.sg.graph.edges.data()):
+    for node1, node2, data in lobstergraph.sg.graph.edges.data():
         # extract edge properties
-        cohp_data = completecohp.get_cohp_by_label(label=data["bond_label"]).as_dict()
+        bond_label = data["bond_label"]
+        cohp_data = completecohp.get_cohp_by_label(label=bond_label).as_dict()
         spinup_cohps = cohp_data["COHP"]["1"]
         spindown_cohps = cohp_data["COHP"]["-1"]
         energies = cohp_data["energies"]
         fermi_energy = cohp_data["efermi"]
-        x = [spinup_cohps[i] + spindown_cohps[i] for i, _ in enumerate(spinup_cohps)]
-        y = [energies[i] - fermi_energy for i, _ in enumerate(energies)]
+        x = [spinup_cohps[j] + spindown_cohps[j] for j, _ in enumerate(spinup_cohps)]
+        y = [energies[j] - fermi_energy for j, _ in enumerate(energies)]
         frac_coord1 = cell["atoms"][node1]["frac_coord"]
         frac_coord2 = cell["atoms"][node2]["frac_coord"] + data["to_jimage"]
         # check if edges lies within cell
         if (-tol <= frac_coord2[0] <= 1+tol) and \
            (-tol <= frac_coord2[1] <= 1+tol) and \
            (-tol <= frac_coord2[2] <= 1+tol):
-            # add edge by fractional coordinates of connected nodes to cell
-            cell["edges"].append((frac_coord1, frac_coord2))
-            # add edge properties to cell
-            cell["edge_properties"]["cohp_plot"].append((x, y))
-            cell["edge_properties"]["bond_length"].append(data["bond_length"])
-            cell["edge_properties"]["icobi"].append(data["ICOBI"])
-            cell["edge_properties"]["icoop"].append(data["ICOOP"])
-            cell["edge_properties"]["icohp"].append(data["ICOHP"])
-            cell["edge_properties"]["icohp_bonding_perc"].append(data["ICOHP_bonding_perc"])
+            cell["edges"][bond_label] = {
+                "frac_coords": [],
+                "cohp_plot": None,
+                "bond_length": None,
+                "icobi": None,
+                "icoop": None,
+                "icohp": None,
+                "icohp_bonding_perc": None
+            }
+            cell["edges"][bond_label]["frac_coords"].append((frac_coord1, frac_coord2))
+            cell["edges"][bond_label]["cohp_plot"] = (x, y)
+            cell["edges"][bond_label]["bond_length"] = data["bond_length"]
+            cell["edges"][bond_label]["icobi"] = data["ICOBI"]
+            cell["edges"][bond_label]["icoop"] = data["ICOOP"]
+            cell["edges"][bond_label]["icohp"] = data["ICOHP"]
+            cell["edges"][bond_label]["icohp_bonding_perc"] = data["ICOHP_bonding_perc"]
         # iterate over all edges that are equivalent to the current one due to translational symmetry
         for eq_atom in eq_atoms[node1]:
             start = cell["atoms"][eq_atom]["frac_coord"]
@@ -130,15 +131,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
             if (-tol <= end[0] <= 1+tol) and \
                (-tol <= end[1] <= 1+tol) and \
                (-tol <= end[2] <= 1+tol):
-                # add edge by fractional coordinates of connected nodes to cell
-                cell["edges"].append((start, end))
-                # add edge properties to cell
-                cell["edge_properties"]["cohp_plot"].append((x, y))
-                cell["edge_properties"]["bond_length"].append(data["bond_length"])
-                cell["edge_properties"]["icobi"].append(data["ICOBI"])
-                cell["edge_properties"]["icoop"].append(data["ICOOP"])
-                cell["edge_properties"]["icohp"].append(data["ICOHP"])
-                cell["edge_properties"]["icohp_bonding_perc"].append(data["ICOHP_bonding_perc"])
+                cell["edges"][bond_label]["frac_coords"].append((start, end))
 
     return cell
 
@@ -146,7 +139,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
 
 def get_primitive_supercell(
         lobstergraph: LobsterGraph, cell: dict, cart_crystal_axis_matrix: np.ndarray
-) -> list:
+) -> dict:
     """
     function to build a primitive supercell from a primitive cell based on connectivity information in graph
     object ("to_jimage" vectors)
@@ -181,59 +174,46 @@ def get_primitive_supercell(
 
     # iterate over x, y, z dimension
     num_atoms = len(cell["atoms"])
-    cells = [cell]
     for i, (dim_min, dim_max) in enumerate([(x_min, x_max), (y_min, y_max), (z_min, z_max)]):
         # create new cell by shifting existing one in x, y or z direction
         shift = np.array([0, 0, 0])
         shift[i] = 1.0
-        new_cells = []
-        for cell in cells:
-            # repeat every cell x_min/y_min/z_min times in negative direction and x_max/y_max/z_max times in
-            # positive direction
-            for j in [k for k in range(dim_min, dim_max+1) if k != 0]:
-                new_cell = {
-                    "atoms": {},
-                    "axes": [],
-                    "edges": [],
-                    "edge_properties": {
-                        "cohp_plot": [],
-                        "bond_length": [],
-                        "icobi": [],
-                        "icoop": [],
-                        "icohp": [],
-                        "icohp_bonding_perc": []
-                    },
+        new_atoms = {}
+        new_axes = []
+        new_edges = {}
+        # repeat every cell x_min/y_min/z_min times in negative direction and x_max/y_max/z_max times in
+        # positive direction
+        for j in [k for k in range(dim_min, dim_max + 1) if k != 0]:
+            # calculate coordinates of new nodes (atoms)
+            for atom in cell["atoms"].values():
+                new_atoms[num_atoms] = {
+                    "element": atom["element"],
+                    "number": atom["number"],
+                    "frac_coord": atom["frac_coord"] + j * shift,
                 }
-                # add axes to new cell
-                for start, end in cell["axes"]:
-                    new_start = start + np.dot(cart_crystal_axis_matrix, j * shift)
-                    new_end = end + np.dot(cart_crystal_axis_matrix, j * shift)
-                    new_cell["axes"].append((new_start, new_end))
-                # add edges (bonds) and edge properties (bond properties) to new cell
-                # (the latter based on equivalence)
-                for l, (start, end) in enumerate(cell["edges"]):
+                num_atoms += 1
+            # calculate coordindates of new axes
+            for start, end in cell["axes"]:
+                new_start = start + np.dot(cart_crystal_axis_matrix, j * shift)
+                new_end = end + np.dot(cart_crystal_axis_matrix, j * shift)
+                new_axes.append((new_start, new_end))
+            # calculate coordinates of new edges (bonds), add them to bond labels based on equivalence
+            for bond_label, edge in cell["edges"].items():
+                new_edges[bond_label] = []
+                for start, end in edge["frac_coords"]:
                     new_start = start + j * shift
                     new_end = end + j * shift
-                    new_cell["edges"].append((new_start, new_end))
-                    new_cell["edge_properties"]["cohp_plot"].append(cell["edge_properties"]["cohp_plot"][l])
-                    new_cell["edge_properties"]["bond_length"].append(cell["edge_properties"]["bond_length"][l])
-                    new_cell["edge_properties"]["icobi"].append(cell["edge_properties"]["icobi"][l])
-                    new_cell["edge_properties"]["icoop"].append(cell["edge_properties"]["icoop"][l])
-                    new_cell["edge_properties"]["icohp"].append(cell["edge_properties"]["icohp"][l])
-                    new_cell["edge_properties"]["icohp_bonding_perc"].append(
-                        cell["edge_properties"]["icohp_bonding_perc"][l]
-                    )
-                # add nodes (atoms) to new cell as coordinates
-                for atom in cell["atoms"].values():
-                    new_cell["atoms"][num_atoms] = {
-                        "element": atom["element"],
-                        "number": atom["number"],
-                        "frac_coord": atom["frac_coord"] + j * shift,
-                    }
-                    num_atoms += 1
-                new_cells.append(new_cell)
-        cells += new_cells
-    return cells
+                    new_edges[bond_label].append((new_start, new_end))
+            # add new nodes to cell
+            cell["atoms"] = {**cell["atoms"], **new_atoms}
+            # add new axes to cell
+            cell["axes"] += new_axes
+            # add new edges by bond label to cell
+            for bond_label in new_edges.keys():
+                for frac_coords in new_edges[bond_label]:
+                    cell["edges"][bond_label]["frac_coords"].append(frac_coords)
+
+    return cell
 
 
 
@@ -305,7 +285,7 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
 
     cell = get_primitive_cell(lobstergraph, completecohp)
     cell["axes"] = axes
-    cells = get_primitive_supercell(lobstergraph, cell, cart_crystal_axis_matrix)
+    cell = get_primitive_supercell(lobstergraph, cell, cart_crystal_axis_matrix)
 
     # layout of plot axes
     axis = dict(
@@ -339,70 +319,13 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
 
     fig = go.Figure(layout=layout)
 
-    # build up structure plot by including the primitive cells in plot
-    for cell in cells:
-        # collect node data for plot
-        for atom in cell["atoms"].values():
-            coord = np.dot(cart_crystal_axis_matrix, atom["frac_coord"])
-            node_x.append(coord[0])
-            node_y.append(coord[1])
-            node_z.append(coord[2])
-            atom_number.append(atom["number"])
-        # add edges (bonds) to plot, the bond properties are saved as custom hover data
-        # every edge is included as separate trace to make them separately accessible for the hover events
-        for j, (start, end) in enumerate(cell["edges"]):
-            start = np.dot(cart_crystal_axis_matrix, start)
-            end = np.dot(cart_crystal_axis_matrix, end)
-            fig.add_trace(
-                go.Scatter3d(
-                    x=[start[0], end[0], None],
-                    y=[start[1], end[1], None],
-                    z=[start[2], end[2], None],
-                    mode="lines",
-                    line={
-                        "width": 2,
-                        "color": "black"
-                    },
-                    hoverinfo="none",
-                    customdata=[
-                        [
-                            cell["edge_properties"]["cohp_plot"][j],
-                            cell["edge_properties"]["bond_length"][j],
-                            cell["edge_properties"]["icobi"][j],
-                            cell["edge_properties"]["icoop"][j],
-                            cell["edge_properties"]["icohp"][j],
-                            cell["edge_properties"]["icohp_bonding_perc"][j]
-                        ],
-                        [
-                            cell["edge_properties"]["cohp_plot"][j],
-                            cell["edge_properties"]["bond_length"][j],
-                            cell["edge_properties"]["icobi"][j],
-                            cell["edge_properties"]["icoop"][j],
-                            cell["edge_properties"]["icohp"][j],
-                            cell["edge_properties"]["icohp_bonding_perc"][j]
-                        ],
-                        None
-                    ]
-                )
-            )
-        # collect axes data for the plot
-        for start, end in cell["axes"]:
-            axis_x += [start[0], end[0], None]
-            axis_y += [start[1], end[1], None]
-            axis_z += [start[2], end[2], None]
-
-    # add axes of primitive cells to plot
-    axes_trace = go.Scatter3d(
-        x=axis_x,
-        y=axis_y,
-        z=axis_z,
-        mode="lines",
-        hoverinfo="none",
-        line=dict(color="grey", width=1)
-    )
-    fig.add_trace(axes_trace)
-
     # add nodes (atoms) with color depending on element to plot
+    for atom in cell["atoms"].values():
+        coord = np.dot(cart_crystal_axis_matrix, atom["frac_coord"])
+        node_x.append(coord[0])
+        node_y.append(coord[1])
+        node_z.append(coord[2])
+        atom_number.append(atom["number"])
     node_trace = go.Scatter3d(
         x=node_x,
         y=node_y,
@@ -418,6 +341,60 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
         ),
     )
     fig.add_trace(node_trace)
+
+    # add axes of primitive cells to plot
+    for start, end in cell["axes"]:
+        axis_x += [start[0], end[0], None]
+        axis_y += [start[1], end[1], None]
+        axis_z += [start[2], end[2], None]
+    axes_trace = go.Scatter3d(
+        x=axis_x,
+        y=axis_y,
+        z=axis_z,
+        mode="lines",
+        hoverinfo="none",
+        line=dict(color="grey", width=1)
+    )
+    fig.add_trace(axes_trace)
+
+    # add edges with edge properties as custom hover data as separate traces to plot, to make them separately
+    # accessible for hover events
+    for edge in cell["edges"].values():
+        for start, end in edge["frac_coords"]:
+            start = np.dot(cart_crystal_axis_matrix, start)
+            end = np.dot(cart_crystal_axis_matrix, end)
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[start[0], end[0], None],
+                    y=[start[1], end[1], None],
+                    z=[start[2], end[2], None],
+                    mode="lines",
+                    line={
+                        "width": 2,
+                        "color": "black"
+                    },
+                    hoverinfo="none",
+                    customdata=[
+                        [
+                            edge["cohp_plot"],
+                            edge["bond_length"],
+                            edge["icobi"],
+                            edge["icoop"],
+                            edge["icohp"],
+                            edge["icohp_bonding_perc"]
+                        ],
+                        [
+                            edge["cohp_plot"],
+                            edge["bond_length"],
+                            edge["icobi"],
+                            edge["icoop"],
+                            edge["icohp"],
+                            edge["icohp_bonding_perc"]
+                        ],
+                        None
+                    ]
+                )
+            )
 
     return fig
 
