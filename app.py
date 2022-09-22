@@ -317,4 +317,4 @@ def get_current_camera_position(layout_data):
 if __name__ == '__main__':
     # declare current camera position
     global last_camera_position
-    app.run_server(debug=True, port=8051)
+    app.run_server(debug=True)

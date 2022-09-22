@@ -1,7 +1,6 @@
 import os
 import random
 import warnings
-import copy
 
 import numpy as np
 import plotly.graph_objs as go
@@ -107,21 +106,14 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
            (-tol <= frac_coord2[1] <= 1+tol) and \
            (-tol <= frac_coord2[2] <= 1+tol):
             cell["edges"][bond_label] = {
-                "frac_coords": [],
-                "cohp_plot": None,
-                "bond_length": None,
-                "icobi": None,
-                "icoop": None,
-                "icohp": None,
-                "icohp_bonding_perc": None
+                "frac_coords": [(frac_coord1, frac_coord2)],
+                "cohp_plot": (x, y),
+                "bond_length": data["bond_length"],
+                "icobi": data["ICOBI"],
+                "icoop": data["ICOOP"],
+                "icohp": data["ICOHP"],
+                "icohp_bonding_perc": data["ICOHP_bonding_perc"]
             }
-            cell["edges"][bond_label]["frac_coords"].append((frac_coord1, frac_coord2))
-            cell["edges"][bond_label]["cohp_plot"] = (x, y)
-            cell["edges"][bond_label]["bond_length"] = data["bond_length"]
-            cell["edges"][bond_label]["icobi"] = data["ICOBI"]
-            cell["edges"][bond_label]["icoop"] = data["ICOOP"]
-            cell["edges"][bond_label]["icohp"] = data["ICOHP"]
-            cell["edges"][bond_label]["icohp_bonding_perc"] = data["ICOHP_bonding_perc"]
         # iterate over all edges that are equivalent to the current one due to translational symmetry
         for eq_atom in eq_atoms[node1]:
             start = cell["atoms"][eq_atom]["frac_coord"]
