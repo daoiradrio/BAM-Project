@@ -130,7 +130,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
 
 
 def get_primitive_supercell(
-        lobstergraph: LobsterGraph, cell: dict, cart_crystal_axis_matrix: np.ndarray
+        lobstergraph: LobsterGraph, cell: dict, frac_to_cart_matrix: np.ndarray
 ) -> dict:
     """
     function to build a primitive supercell from a primitive cell based on connectivity information in graph
@@ -140,7 +140,7 @@ def get_primitive_supercell(
     :param cells: list containing primitive cell to duplicate in order to build supercell
     :param atoms: dictionary of atoms in primitive cell, keys are enumerated atom numbers, values element symbol and
                   element number
-    :param cart_crystal_axis_matrix:
+    :param frac_to_cart_matrix: matrix to convert fractional coordinates to cartesian coordinates
     :return: cells: list containing all primitive cells that make up primitive supercell
     """
 
@@ -164,6 +164,11 @@ def get_primitive_supercell(
     # minimum z-component of all "to_jimage" vectors determines size of supercell in -z direction
     z_max = max(zs)
 
+    # get cell parameters of supercell (necessary for building extended supercell)
+    cell["a"] = 1 + abs(x_max) + abs(x_min)
+    cell["b"] = 1 + abs(y_max) + abs(y_min)
+    cell["c"] = 1 + abs(z_max) + abs(z_min)
+
     # iterate over x, y, z dimension
     num_atoms = len(cell["atoms"])
     for i, (dim_min, dim_max) in enumerate([(x_min, x_max), (y_min, y_max), (z_min, z_max)]):
@@ -186,8 +191,8 @@ def get_primitive_supercell(
                 num_atoms += 1
             # calculate coordindates of new axes
             for start, end in cell["axes"]:
-                new_start = start + np.dot(cart_crystal_axis_matrix, j * shift)
-                new_end = end + np.dot(cart_crystal_axis_matrix, j * shift)
+                new_start = start + np.dot(frac_to_cart_matrix, j * shift)
+                new_end = end + np.dot(frac_to_cart_matrix, j * shift)
                 new_axes.append((new_start, new_end))
             # calculate coordinates of new edges (bonds), add them to bond labels based on equivalence
             for bond_label, edge in cell["edges"].items():
@@ -204,6 +209,69 @@ def get_primitive_supercell(
             for bond_label in new_edges.keys():
                 for frac_coords in new_edges[bond_label]:
                     cell["edges"][bond_label]["frac_coords"].append(frac_coords)
+
+    return cell
+
+
+
+def get_extended_primitive_supercell(cell: dict, vecs: list, frac_to_cart_matrix: np.ndarray) -> dict:
+    """
+    function to extend the computed primitive supercell in desired spatial directions
+
+    :param cell: dictionary defining the primitive supercell to be extended
+    :param vecs: list of shift vectors that define how often and in which direction the primitive supercell is
+                 repeated, format [n, a, b, c] where n is how often the cell should be repeated and
+                 a, b, c = -1, 0, 1 define in which direction the cell will be repeated
+    :param frac_to_cart_matrix: matrix to convert fractional coordinates to cartesian coordinates in the
+                                given crystal system
+    :return: cell: dictionary defining the extended primitive supercell
+    """
+
+    # initialization block
+    num_atoms = len(cell["atoms"])
+    new_atoms = {}
+    new_axes = []
+    new_edges = {bond_label: [] for bond_label, data in cell["edges"].items()}
+
+    # apply all user defined shift vectors
+    for vec in vecs:
+        # number of times to repeat cell in certain direction
+        n = vec[0]
+        # direction in which the cell will be repeated
+        shift = np.array(vec[1:])
+        shift[0] *= cell["a"]
+        shift[1] *= cell["b"]
+        shift[2] *= cell["c"]
+        # repeat the cell 1, 2, ..., n times in the certain direction
+        for i in range(1, n+1):
+            # calculate coordinates of new nodes (atoms)
+            for atom in cell["atoms"].values():
+                new_atoms[num_atoms] = {
+                    "element": atom["element"],
+                    "number": atom["number"],
+                    "frac_coord": atom["frac_coord"] + i * shift
+                }
+                num_atoms += 1
+            # calculate coordindates of new axes
+            for start, end in cell["axes"]:
+                new_start = start + np.dot(frac_to_cart_matrix, i * shift)
+                new_end = end + np.dot(frac_to_cart_matrix, i * shift)
+                new_axes.append((new_start, new_end))
+            # calculate coordinates of new edges (bonds), add them to bond labels based on equivalence
+            for bond_label, edge in cell["edges"].items():
+                for start, end in edge["frac_coords"]:
+                    new_start = start + i * shift
+                    new_end = end + i * shift
+                    new_edges[bond_label].append((new_start, new_end))
+
+    # add new nodes to cell
+    cell["atoms"] = {**cell["atoms"], **new_atoms}
+    # add new axes to cell
+    cell["axes"] += new_axes
+    # add new edges by bond label to cell
+    for bond_label in new_edges.keys():
+        for frac_coords in new_edges[bond_label]:
+            cell["edges"][bond_label]["frac_coords"].append(frac_coords)
 
     return cell
 
@@ -273,11 +341,13 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
     axes.append((x + y, x + y + z))
 
     # matrix to transform fractional to cartesian coordinates
-    cart_crystal_axis_matrix = np.stack((x, y, z), axis=-1)
+    frac_to_cart_matrix = np.stack((x, y, z), axis=-1)
 
     cell = get_primitive_cell(lobstergraph, completecohp)
     cell["axes"] = axes
-    cell = get_primitive_supercell(lobstergraph, cell, cart_crystal_axis_matrix)
+    cell = get_primitive_supercell(lobstergraph, cell, frac_to_cart_matrix)
+    vecs = [[1, 1, 0, 0], [1, 0, 1, 0]]
+    cell = get_extended_primitive_supercell(cell=cell, vecs=vecs, frac_to_cart_matrix=frac_to_cart_matrix)
 
     # layout of plot axes
     axis = dict(
@@ -313,7 +383,7 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
 
     # add nodes (atoms) with color depending on element to plot
     for atom in cell["atoms"].values():
-        coord = np.dot(cart_crystal_axis_matrix, atom["frac_coord"])
+        coord = np.dot(frac_to_cart_matrix, atom["frac_coord"])
         node_x.append(coord[0])
         node_y.append(coord[1])
         node_z.append(coord[2])
@@ -353,8 +423,8 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
     # accessible for hover events
     for edge in cell["edges"].values():
         for start, end in edge["frac_coords"]:
-            start = np.dot(cart_crystal_axis_matrix, start)
-            end = np.dot(cart_crystal_axis_matrix, end)
+            start = np.dot(frac_to_cart_matrix, start)
+            end = np.dot(frac_to_cart_matrix, end)
             fig.add_trace(
                 go.Scatter3d(
                     x=[start[0], end[0], None],

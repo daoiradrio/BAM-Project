@@ -8,7 +8,7 @@ from helpers_for_tests import lobstergraph, completecohp
 
 
 
-def test_edge_properties():
+def test_edge_properties_cell():
     cell = get_primitive_cell(lobstergraph, completecohp)
 
     for test_edge, (_, _, true_edge) in zip(cell["edges"].values(), lobstergraph.sg.graph.edges.data()):
@@ -27,7 +27,7 @@ def test_edge_properties():
 
 
 
-def test_cohp_plot():
+def test_cohp_plot_cell():
     cell = get_primitive_cell(lobstergraph, completecohp)
     
     for bond_label, edge in cell["edges"].items():
