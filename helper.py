@@ -8,8 +8,78 @@ import plotly.graph_objs as go
 from lobsterpy.structuregraph.graph import LobsterGraph
 from pymatgen.electronic_structure.cohp import CompleteCohp
 from itertools import product, permutations
+from pymatgen.analysis.graphs import Structure
 
 warnings.filterwarnings(action='ignore')
+
+
+
+def get_coord_transformation_matrix(structure: Structure) -> np.array:
+    a = structure.lattice.a
+    b = structure.lattice.b
+    c = structure.lattice.c
+
+    alpha = structure.lattice.alpha
+    beta = structure.lattice.beta
+    gamma = structure.lattice.gamma
+
+    alpha_rad = np.deg2rad(alpha)
+    beta_rad = np.deg2rad(beta)
+    gamma_rad = np.deg2rad(gamma)
+
+    x = np.array([a, 0, 0])
+    y = np.array([b * np.cos(gamma_rad), b * np.sin(gamma_rad), 0])
+    z = np.array([c * np.cos(beta_rad), c * np.cos(alpha_rad), c * np.sin(gamma_rad)])
+
+    return np.stack((x, y, z), axis=-1)
+
+
+
+def get_cell_axes(structure: Structure) -> list:
+    axes = []
+
+    a = structure.lattice.a
+    b = structure.lattice.b
+    c = structure.lattice.c
+
+    alpha = structure.lattice.alpha
+    beta = structure.lattice.beta
+    gamma = structure.lattice.gamma
+
+    alpha_rad = np.deg2rad(alpha)
+    beta_rad = np.deg2rad(beta)
+    gamma_rad = np.deg2rad(gamma)
+
+    origin = np.array([0, 0, 0])
+    # cartesian x-axis
+    x = np.array([a, 0, 0])
+    axes.append((origin, x))
+    # cartesian y-axis
+    y = np.array([b * np.cos(gamma_rad), b * np.sin(gamma_rad), 0])
+    axes.append((origin, y))
+    # cartesian z-axis
+    z = np.array([c * np.cos(beta_rad), c * np.cos(alpha_rad), c * np.sin(gamma_rad)])
+    axes.append((origin, z))
+    # cartesian x-axis parallel in y-direction
+    axes.append((y, y + x))
+    # cartesian x-axis parallel in z-direction
+    axes.append((z, z + x))
+    # cartesian x-axis parallel in yz-direction
+    axes.append((y + z, y + z + x))
+    # cartesian y-axis parallel in x-direction
+    axes.append((x, x + y))
+    # cartesian y-axis parallel in z-direction
+    axes.append((z, z + y))
+    # cartesian y-axis parallel in xz-direction
+    axes.append((x + z, x + z + y))
+    # cartesian z-axis parallel in x-direction
+    axes.append((x, x + z))
+    # cartesian z-axis parallel in y-direction
+    axes.append((y, y + z))
+    # cartesian z-axis parallel in xy-direction
+    axes.append((x + y, x + y + z))
+
+    return axes
 
 
 
@@ -297,55 +367,21 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
     axis_x = []
     axis_y = []
     axis_z = []
-    axes = []
-
-    structure = lobstergraph.sg.structure
-
-    a = structure.lattice.a
-    b = structure.lattice.b
-    c = structure.lattice.c
-    alpha = structure.lattice.alpha
-    beta = structure.lattice.beta
-    gamma = structure.lattice.gamma
-    alpha_rad = np.deg2rad(alpha)
-    beta_rad = np.deg2rad(beta)
-    gamma_rad = np.deg2rad(gamma)
-    origin = np.array([0, 0, 0])
-
-    # cartesian x-axis
-    x = np.array([a, 0, 0])
-    axes.append((origin, x))
-    # cartesian y-axis
-    y = np.array([b * np.cos(gamma_rad), b * np.sin(gamma_rad), 0])
-    axes.append((origin, y))
-    # cartesian z-axis
-    z = np.array([c * np.cos(beta_rad), c * np.cos(alpha_rad), c * np.sin(gamma_rad)])
-    axes.append((origin, z))
-    # cartesian x-axis parallel in y-direction
-    axes.append((y, y + x))
-    # cartesian x-axis parallel in z-direction
-    axes.append((z, z + x))
-    # cartesian x-axis parallel in yz-direction
-    axes.append((y + z, y + z + x))
-    # cartesian y-axis parallel in x-direction
-    axes.append((x, x + y))
-    # cartesian y-axis parallel in z-direction
-    axes.append((z, z + y))
-    # cartesian y-axis parallel in xz-direction
-    axes.append((x + z, x + z + y))
-    # cartesian z-axis parallel in x-direction
-    axes.append((x, x + z))
-    # cartesian z-axis parallel in y-direction
-    axes.append((y, y + z))
-    # cartesian z-axis parallel in xy-direction
-    axes.append((x + y, x + y + z))
 
     # matrix to transform fractional to cartesian coordinates
-    frac_to_cart_matrix = np.stack((x, y, z), axis=-1)
+    frac_to_cart_matrix = get_coord_transformation_matrix(lobstergraph.sg.structure)
 
+    # build primitive cell
     cell = get_primitive_cell(lobstergraph, completecohp)
-    cell["axes"] = axes
+
+    # add cell axes to primitive cell
+    cell["axes"] = get_cell_axes(lobstergraph.sg.structure)
+
+    # build primitive supercell from primitive cell
     cell = get_primitive_supercell(lobstergraph, cell, frac_to_cart_matrix)
+
+    # TODO: perform this extension if user demands to do so
+    # build extended primitive supercell from primitive supercell
     vecs = [[1, 1, 0, 0], [1, 0, 1, 0]]
     cell = get_extended_primitive_supercell(cell=cell, vecs=vecs, frac_to_cart_matrix=frac_to_cart_matrix)
 
@@ -489,6 +525,7 @@ def get_structure_plot(
     )
 
     return create_plot(lobstergraph, completecohp)
+
 
 
 def get_dummy_cohp_plot() -> go.Figure:
