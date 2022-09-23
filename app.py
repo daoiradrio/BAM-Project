@@ -2,19 +2,16 @@ import os
 
 import plotly.graph_objs as go
 
-from helper import get_structure_plot, get_dummy_cohp_plot, get_chosen_structure
+from helper import get_structure_plot, get_dummy_cohp_plot
 from dash import Dash, dcc, html, Input, Output
 
 
 
-# directory of structure to be visualized
+# get path of structure to be visualized
 dir = "mp-10143/"
 #dir = "mp-510401"
 #dir = "mp-2384"
-
-# get path of chosen structure
-path = get_chosen_structure(dir)
-#path = get_random_structure()
+path = os.path.join(os.path.expanduser("~/automationresults"), dir)
 
 # get necessary file paths
 path_to_poscar = os.path.join(path, "POSCAR")
@@ -26,6 +23,11 @@ path_to_cohpcar = os.path.join(path, "COHPCAR.lobster")
 path_to_madelung = os.path.join(path, "MadelungEnergies.lobster")
 
 # structure plot as Figure object
+#vecs = [
+#    [1, 1, 0, 0],
+#    [1, 0, 1, 0]
+#]
+vecs = None
 fig = get_structure_plot(
     path_to_poscar,
     path_to_charge,
@@ -33,14 +35,14 @@ fig = get_structure_plot(
     path_to_icooplist,
     path_to_icohplist,
     path_to_cohpcar,
-    path_to_madelung
+    path_to_madelung,
+    vecs=vecs
 )
+
+app = Dash(__name__)
 
 # Figure plot with empty plot for creating COHP plot
 cohp_plot = get_dummy_cohp_plot()
-
-
-app = Dash(__name__)
 
 app.layout = html.Div([
         # container for structure plot

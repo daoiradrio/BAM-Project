@@ -171,10 +171,22 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
         y = [energies[j] - fermi_energy for j, _ in enumerate(energies)]
         frac_coord1 = cell["atoms"][node1]["frac_coord"]
         frac_coord2 = cell["atoms"][node2]["frac_coord"] + data["to_jimage"]
+        """
+        cell["edges"][bond_label] = {
+            "frac_coords": [],
+            "cohp_plot": None,
+            "bond_length": None,
+            "icobi": None,
+            "icoop": None,
+            "icohp": None,
+            "icohp_bonding_perc": None
+        }
+        """
         # check if edges lies within cell
         if (-tol <= frac_coord2[0] <= 1+tol) and \
            (-tol <= frac_coord2[1] <= 1+tol) and \
            (-tol <= frac_coord2[2] <= 1+tol):
+
             cell["edges"][bond_label] = {
                 "frac_coords": [(frac_coord1, frac_coord2)],
                 "cohp_plot": (x, y),
@@ -184,6 +196,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
                 "icohp": data["ICOHP"],
                 "icohp_bonding_perc": data["ICOHP_bonding_perc"]
             }
+
         # iterate over all edges that are equivalent to the current one due to translational symmetry
         for eq_atom in eq_atoms[node1]:
             start = cell["atoms"][eq_atom]["frac_coord"]
@@ -347,7 +360,7 @@ def get_extended_primitive_supercell(cell: dict, vecs: list, frac_to_cart_matrix
 
 
 
-def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Figure:
+def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp, vecs: list = None) -> go.Figure:
     """
     Creation of an interactive 3D plot of a compound's primitive supercell, containing information about site and
     bond properties.
@@ -380,10 +393,9 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -> go.Fi
     # build primitive supercell from primitive cell
     cell = get_primitive_supercell(lobstergraph, cell, frac_to_cart_matrix)
 
-    # TODO: perform this extension if user demands to do so
     # build extended primitive supercell from primitive supercell
-    vecs = [[1, 1, 0, 0], [1, 0, 1, 0]]
-    cell = get_extended_primitive_supercell(cell=cell, vecs=vecs, frac_to_cart_matrix=frac_to_cart_matrix)
+    if vecs:
+        cell = get_extended_primitive_supercell(cell=cell, vecs=vecs, frac_to_cart_matrix=frac_to_cart_matrix)
 
     # layout of plot axes
     axis = dict(
@@ -505,7 +517,8 @@ def get_structure_plot(
         path_to_icooplist: str,
         path_to_icohplist: str,
         path_to_cohpcar: str,
-        path_to_madelung: str
+        path_to_madelung: str,
+        vecs: list = None
 ):
     lobstergraph = LobsterGraph(
         path_to_poscar=path_to_poscar,
@@ -524,7 +537,7 @@ def get_structure_plot(
         fmt="LOBSTER", filename=path_to_cohpcar, structure_file=path_to_poscar
     )
 
-    return create_plot(lobstergraph, completecohp)
+    return create_plot(lobstergraph, completecohp, vecs)
 
 
 
