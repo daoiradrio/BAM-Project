@@ -1,6 +1,8 @@
 import os
 import warnings
 
+import numpy as np
+
 from lobsterpy.structuregraph.graph import LobsterGraph
 from pymatgen.electronic_structure.cohp import CompleteCohp
 from pymatgen.analysis.structure_analyzer import SpacegroupAnalyzer
@@ -24,6 +26,7 @@ path_to_icohplist = os.path.join(path, "ICOHPLIST.lobster")
 path_to_cohpcar = os.path.join(path, "COHPCAR.lobster")
 path_to_madelung = os.path.join(path, "MadelungEnergies.lobster")
 
+"""
 lobstergraph = LobsterGraph(
     path_to_poscar=path_to_poscar,
     path_to_charge=path_to_charge,
@@ -40,3 +43,4 @@ lobstergraph = LobsterGraph(
 completecohp = CompleteCohp.from_file(
     fmt="LOBSTER", filename=path_to_cohpcar, structure_file=path_to_poscar
 )
+#"""

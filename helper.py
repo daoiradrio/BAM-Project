@@ -14,51 +14,43 @@ warnings.filterwarnings(action='ignore')
 
 
 
-def get_coord_transformation_matrix(structure: Structure) -> np.array:
-    a = structure.lattice.a
-    b = structure.lattice.b
-    c = structure.lattice.c
-
-    alpha = structure.lattice.alpha
-    beta = structure.lattice.beta
-    gamma = structure.lattice.gamma
-
-    alpha_rad = np.deg2rad(alpha)
-    beta_rad = np.deg2rad(beta)
-    gamma_rad = np.deg2rad(gamma)
+def get_coord_transformation_matrix(
+        a: float, b: float, c: float,
+        alpha: float, beta: float, gamma: float, is_rad: bool = False
+) -> np.array:
+    if not is_rad:
+        alpha = np.deg2rad(alpha)
+        beta = np.deg2rad(beta)
+        gamma = np.deg2rad(gamma)
 
     x = np.array([a, 0, 0])
-    y = np.array([b * np.cos(gamma_rad), b * np.sin(gamma_rad), 0])
-    z = np.array([c * np.cos(beta_rad), c * np.cos(alpha_rad), c * np.sin(gamma_rad)])
+    y = np.array([b * np.cos(gamma), b * np.sin(gamma), 0])
+    z = np.array([c * np.cos(beta), c * np.cos(alpha), c * np.sin(gamma)])
 
     return np.stack((x, y, z), axis=-1)
 
 
 
-def get_cell_axes(structure: Structure) -> list:
+def get_cell_axes(
+    a: float, b: float, c: float,
+        alpha: float, beta: float, gamma: float, is_rad: bool = False
+) -> list:
     axes = []
 
-    a = structure.lattice.a
-    b = structure.lattice.b
-    c = structure.lattice.c
-
-    alpha = structure.lattice.alpha
-    beta = structure.lattice.beta
-    gamma = structure.lattice.gamma
-
-    alpha_rad = np.deg2rad(alpha)
-    beta_rad = np.deg2rad(beta)
-    gamma_rad = np.deg2rad(gamma)
+    if not is_rad:
+        alpha = np.deg2rad(alpha)
+        beta = np.deg2rad(beta)
+        gamma = np.deg2rad(gamma)
 
     origin = np.array([0, 0, 0])
     # cartesian x-axis
     x = np.array([a, 0, 0])
     axes.append((origin, x))
     # cartesian y-axis
-    y = np.array([b * np.cos(gamma_rad), b * np.sin(gamma_rad), 0])
+    y = np.array([b * np.cos(gamma), b * np.sin(gamma), 0])
     axes.append((origin, y))
     # cartesian z-axis
-    z = np.array([c * np.cos(beta_rad), c * np.cos(alpha_rad), c * np.sin(gamma_rad)])
+    z = np.array([c * np.cos(beta), c * np.cos(alpha), c * np.sin(gamma)])
     axes.append((origin, z))
     # cartesian x-axis parallel in y-direction
     axes.append((y, y + x))

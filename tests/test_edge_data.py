@@ -28,7 +28,16 @@ def test_edge_properties_cell():
 
 
 def test_edge_properties_supercell():
-    frac_to_cart_matrix = get_coord_transformation_matrix(lobstergraph.sg.structure)
+    a = lobstergraph.sg.structure.lattice.a
+    b = lobstergraph.sg.structure.lattice.b
+    c = lobstergraph.sg.structure.lattice.c
+    alpha = lobstergraph.sg.structure.lattice.alpha
+    beta = lobstergraph.sg.structure.lattice.beta
+    gamma = lobstergraph.sg.structure.lattice.gamma
+
+    frac_to_cart_matrix = get_coord_transformation_matrix(
+        a, b, c, alpha, beta, gamma
+    )
 
     cell = get_primitive_cell(lobstergraph, completecohp)
     cell = get_primitive_supercell(lobstergraph, cell, frac_to_cart_matrix)
@@ -76,7 +85,16 @@ def test_cohp_plot_cell():
 
 
 def test_cohp_plot_supercell():
-    frac_to_cart_matrix = get_coord_transformation_matrix(lobstergraph.sg.structure)
+    a = lobstergraph.sg.structure.lattice.a
+    b = lobstergraph.sg.structure.lattice.b
+    c = lobstergraph.sg.structure.lattice.c
+    alpha = lobstergraph.sg.structure.lattice.alpha
+    beta = lobstergraph.sg.structure.lattice.beta
+    gamma = lobstergraph.sg.structure.lattice.gamma
+
+    frac_to_cart_matrix = get_coord_transformation_matrix(
+        a, b, c, alpha, beta, gamma
+    )
 
     cell = get_primitive_cell(lobstergraph, completecohp)
     cell = get_primitive_supercell(lobstergraph, cell, frac_to_cart_matrix)
