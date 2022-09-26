@@ -15,8 +15,8 @@ warnings.filterwarnings(action='ignore')
 
 
 def get_coord_transformation_matrix(
-        a: float, b: float, c: float,
-        alpha: float, beta: float, gamma: float, is_rad: bool = False
+    a: float, b: float, c: float,
+    alpha: float, beta: float, gamma: float, is_rad: bool = False
 ) -> np.array:
     if not is_rad:
         alpha = np.deg2rad(alpha)
@@ -33,7 +33,7 @@ def get_coord_transformation_matrix(
 
 def get_cell_axes(
     a: float, b: float, c: float,
-        alpha: float, beta: float, gamma: float, is_rad: bool = False
+    alpha: float, beta: float, gamma: float, is_rad: bool = False
 ) -> list:
     axes = []
 
@@ -163,17 +163,6 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
         y = [energies[j] - fermi_energy for j, _ in enumerate(energies)]
         frac_coord1 = cell["atoms"][node1]["frac_coord"]
         frac_coord2 = cell["atoms"][node2]["frac_coord"] + data["to_jimage"]
-        """
-        cell["edges"][bond_label] = {
-            "frac_coords": [],
-            "cohp_plot": None,
-            "bond_length": None,
-            "icobi": None,
-            "icoop": None,
-            "icohp": None,
-            "icohp_bonding_perc": None
-        }
-        """
         # check if edges lies within cell
         if (-tol <= frac_coord2[0] <= 1+tol) and \
            (-tol <= frac_coord2[1] <= 1+tol) and \
@@ -373,14 +362,20 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp, vecs: li
     axis_y = []
     axis_z = []
 
-    # matrix to transform fractional to cartesian coordinates
-    frac_to_cart_matrix = get_coord_transformation_matrix(lobstergraph.sg.structure)
+    # get matrix to transform fractional to cartesian coordinates
+    a = lobstergraph.sg.structure.lattice.a
+    b = lobstergraph.sg.structure.lattice.b
+    c = lobstergraph.sg.structure.lattice.c
+    alpha = lobstergraph.sg.structure.lattice.alpha
+    beta = lobstergraph.sg.structure.lattice.beta
+    gamma = lobstergraph.sg.structure.lattice.gamma
+    frac_to_cart_matrix = get_coord_transformation_matrix(a, b, c, alpha, beta, gamma)
 
     # build primitive cell
     cell = get_primitive_cell(lobstergraph, completecohp)
 
     # add cell axes to primitive cell
-    cell["axes"] = get_cell_axes(lobstergraph.sg.structure)
+    cell["axes"] = get_cell_axes(a, b, c, alpha, beta, gamma)
 
     # build primitive supercell from primitive cell
     cell = get_primitive_supercell(lobstergraph, cell, frac_to_cart_matrix)
@@ -499,6 +494,81 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp, vecs: li
             )
 
     return fig
+
+
+# TODO !
+def create_graph_plot(lobstergraph: LobsterGraph):
+    atom_number = []
+
+    node_x = []
+    node_y = []
+    node_z = []
+
+    frac_coords = lobstergraph.sg.structure.frac_coords
+
+    # layout of plot axes
+    axis = dict(
+        showbackground=False,
+        showline=False,
+        zeroline=False,
+        showgrid=False,
+        showticklabels=False,
+        title="",
+        showspikes=False
+    )
+
+    # overall layout of plot
+    layout = go.Layout(
+        showlegend=False,
+        scene=dict(
+            xaxis=dict(axis),
+            yaxis=dict(axis),
+            zaxis=dict(axis),
+        ),
+        margin=dict(
+            l=20,
+            r=20,
+            b=10,
+            t=10,
+        ),
+        hovermode="closest",
+        height=820,
+        width=1195
+    )
+
+    fig = go.Figure(layout=layout)
+
+    for coord in frac_coords:
+        node_x.append(coord[0])
+        node_y.append(coord[1])
+        node_z.append(coord[2])
+        atom_number.append(1)
+    node_trace = go.Scatter3d(
+        x=node_x,
+        y=node_y,
+        z=node_z,
+        mode="markers",
+        hoverinfo="none",
+        marker=dict(
+            symbol="circle",
+            size=6,
+            color=atom_number,
+            colorscale="Viridis",
+            line=dict(color="rgb(50,50,50)", width=0.5),
+        ),
+    )
+    fig.add_trace(node_trace)
+
+    #vec = 0.5 * (frac_coords[1] - frac_coords[0])
+    #vec = frac_coords[0] + vec
+    #vec = vec + np.array([0.25, 0.25, 0])
+    fig.add_trace(
+        go.Scatter3d(
+
+        )
+    )
+
+    fig.show()
 
 
 
