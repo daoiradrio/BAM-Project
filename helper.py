@@ -8,7 +8,6 @@ import plotly.graph_objs as go
 from lobsterpy.structuregraph.graph import LobsterGraph
 from pymatgen.electronic_structure.cohp import CompleteCohp
 from itertools import product, permutations
-from pymatgen.analysis.graphs import Structure
 
 warnings.filterwarnings(action='ignore')
 
@@ -23,9 +22,21 @@ def get_coord_transformation_matrix(
         beta = np.deg2rad(beta)
         gamma = np.deg2rad(gamma)
 
+    a_vec = np.array([a, 0, 0])
+    b_vec = np.array([0, b, 0])
+    c_vec = np.array([0, 0, c])
+    spat = np.dot(a_vec, np.cross(b_vec, c_vec))
+
     x = np.array([a, 0, 0])
     y = np.array([b * np.cos(gamma), b * np.sin(gamma), 0])
     z = np.array([c * np.cos(beta), c * np.cos(alpha), c * np.sin(gamma)])
+    #z = np.array(
+    #    [
+    #        c * np.cos(beta),
+    #        c * ((np.cos(alpha) - np.cos(beta) * np.cos(gamma)) / np.sin(gamma)),
+    #        spat / (a * b * np.sin(gamma))
+    #    ]
+    #)
 
     return np.stack((x, y, z), axis=-1)
 
@@ -41,6 +52,22 @@ def get_cell_axes(
         alpha = np.deg2rad(alpha)
         beta = np.deg2rad(beta)
         gamma = np.deg2rad(gamma)
+
+    #***
+    #a_vec = np.array([a, 0, 0])
+    #b_vec = np.array([0, b, 0])
+    #c_vec = np.array([0, 0, c])
+    #spat = np.dot(a_vec, np.cross(b_vec, c_vec))
+    #x = np.array([a, 0, 0])
+    #y = np.array([b * np.cos(gamma), b * np.sin(gamma), 0])
+    #z = np.array(
+    #    [
+    #        c * np.cos(beta),
+    #        c * ((np.cos(alpha) - np.cos(beta) * np.cos(gamma)) / np.sin(gamma)),
+    #        spat / (a * b * np.sin(gamma))
+    #    ]
+    #)
+    #***
 
     origin = np.array([0, 0, 0])
     # cartesian x-axis
@@ -159,7 +186,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
         spindown_cohps = cohp_data["COHP"]["-1"]
         energies = cohp_data["energies"]
         fermi_energy = cohp_data["efermi"]
-        x = [spinup_cohps[j] + spindown_cohps[j] for j, _ in enumerate(spinup_cohps)]
+        x = [-(spinup_cohps[j] + spindown_cohps[j]) for j, _ in enumerate(spinup_cohps)]
         y = [energies[j] - fermi_energy for j, _ in enumerate(energies)]
         frac_coord1 = cell["atoms"][node1]["frac_coord"]
         frac_coord2 = cell["atoms"][node2]["frac_coord"] + data["to_jimage"]
@@ -167,7 +194,6 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
         if (-tol <= frac_coord2[0] <= 1+tol) and \
            (-tol <= frac_coord2[1] <= 1+tol) and \
            (-tol <= frac_coord2[2] <= 1+tol):
-
             cell["edges"][bond_label] = {
                 "frac_coords": [(frac_coord1, frac_coord2)],
                 "cohp_plot": (x, y),
@@ -177,7 +203,6 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
                 "icohp": data["ICOHP"],
                 "icohp_bonding_perc": data["ICOHP_bonding_perc"]
             }
-
         # iterate over all edges that are equivalent to the current one due to translational symmetry
         for eq_atom in eq_atoms[node1]:
             start = cell["atoms"][eq_atom]["frac_coord"]
@@ -187,7 +212,21 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
             if (-tol <= end[0] <= 1+tol) and \
                (-tol <= end[1] <= 1+tol) and \
                (-tol <= end[2] <= 1+tol):
-                cell["edges"][bond_label]["frac_coords"].append((start, end))
+                #cell["edges"][bond_label]["frac_coords"].append((start, end))
+                #"""
+                try:
+                    cell["edges"][bond_label]["frac_coords"].append((start, end))
+                except:
+                    cell["edges"][bond_label] = {
+                        "frac_coords": [(start, end)],
+                        "cohp_plot": (x, y),
+                        "bond_length": data["bond_length"],
+                        "icobi": data["ICOBI"],
+                        "icoop": data["ICOOP"],
+                        "icohp": data["ICOHP"],
+                        "icohp_bonding_perc": data["ICOHP_bonding_perc"]
+                    }
+                #"""
 
     return cell
 
@@ -505,6 +544,8 @@ def create_graph_plot(lobstergraph: LobsterGraph):
     node_z = []
 
     frac_coords = lobstergraph.sg.structure.frac_coords
+    for i, _ in enumerate(frac_coords):
+        atom_number.append(lobstergraph.sg.structure[i].specie.number)
 
     # layout of plot axes
     axis = dict(

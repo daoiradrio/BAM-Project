@@ -221,7 +221,7 @@ def edge_hoverevent(hover_data):
 
         cohp.update_xaxes(
             visible=True,
-            title="COHP",
+            title="-COHP",
             title_font_color="black",
             showline=True,
             linewidth=1.5,

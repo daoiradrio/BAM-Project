@@ -5,16 +5,14 @@ import numpy as np
 
 from lobsterpy.structuregraph.graph import LobsterGraph
 from pymatgen.electronic_structure.cohp import CompleteCohp
-from pymatgen.analysis.structure_analyzer import SpacegroupAnalyzer
-from itertools import product, permutations
-from helper import create_graph_plot
+from helper import create_graph_plot, get_coord_transformation_matrix
 
 warnings.filterwarnings(action='ignore')
 
 
 
-dir = "mp-10143/"
-#dir = "mp-510401"
+#dir = "mp-10143/"
+dir = "mp-510401"
 #dir = "mp-2384"
 
 path = os.path.join(os.path.expanduser("~/automationresults"), dir)
@@ -47,4 +45,7 @@ completecohp = CompleteCohp.from_file(
 )
 #"""
 
-create_graph_plot(lobstergraph)
+print(lobstergraph.sg.structure.frac_coords)
+frac_coords = lobstergraph.sg.structure.frac_coords
+for node1, node2, data in lobstergraph.sg.graph.edges.data():
+    print(node1, node2, data["to_jimage"], frac_coords[node2] + data["to_jimage"])
