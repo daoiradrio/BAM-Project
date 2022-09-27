@@ -34,7 +34,24 @@ def test_primitive_cell_building():
 
 
 
-def test_primitive_supercell():
+def test_primitive_cell_edges():
+    cell = get_primitive_cell(lobstergraph, completecohp)
+
+    tol = 0.01
+
+    for edge in cell["edges"].values():
+        for frac_coords in edge["frac_coords"]:
+            start, end = frac_coords
+            if not ((-tol <= start[0] <= 1+tol) and (-tol <= start[1] <= 1+tol) and (-tol <= start[2] <= 1+tol)):
+                assert False
+            if not ((-tol <= end[0] <= 1+tol) and (-tol <= end[1] <= 1+tol) and (-tol <= end[2] <= 1+tol)):
+                assert False
+
+    assert True
+
+
+
+def test_primitive_supercell_building():
     a = lobstergraph.sg.structure.lattice.a
     b = lobstergraph.sg.structure.lattice.b
     c = lobstergraph.sg.structure.lattice.c
@@ -88,3 +105,54 @@ def test_primitive_supercell():
         assert True
     else:
         assert False
+
+
+
+def test_primitive_supercell_edges():
+    a = lobstergraph.sg.structure.lattice.a
+    b = lobstergraph.sg.structure.lattice.b
+    c = lobstergraph.sg.structure.lattice.c
+    alpha = lobstergraph.sg.structure.lattice.alpha
+    beta = lobstergraph.sg.structure.lattice.beta
+    gamma = lobstergraph.sg.structure.lattice.gamma
+
+    frac_to_cart_matrix = get_coord_transformation_matrix(
+        a, b, c, alpha, beta, gamma
+    )
+
+    cell = get_primitive_cell(lobstergraph, completecohp)
+    cell = get_primitive_supercell(lobstergraph, cell, frac_to_cart_matrix)
+
+    data = list(lobstergraph.sg.graph.edges.data())
+
+    xs = [vec["to_jimage"][0] for _, _, vec in data]
+    x_max = 1 + max(xs)
+    x_min = min(0, min(xs))
+
+    ys = [vec["to_jimage"][1] for _, _, vec in data]
+    y_max = 1 + max(ys)
+    y_min = min(0, min(ys))
+
+    zs = [vec["to_jimage"][2] for _, _, vec in data]
+    z_max = 1 + max(zs)
+    z_min = min(0, min(zs))
+
+    tol = 0.01
+
+    for edge in cell["edges"].values():
+        for frac_coords in edge["frac_coords"]:
+            start, end = frac_coords
+            if not (
+                (x_min - tol <= start[0] <= x_max + tol) and
+                (y_min - tol <= start[1] <= y_max + tol) and
+                (z_min - tol <= start[2] <= z_max + tol)
+            ):
+                assert False
+            if not (
+                (x_min - tol <= end[0] <= x_max + tol) and
+                (y_min - tol <= end[1] <= y_max + tol) and
+                (z_min - tol <= end[2] <= z_max + tol)
+            ):
+                assert False
+
+    assert True

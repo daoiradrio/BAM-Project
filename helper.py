@@ -212,8 +212,6 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
             if (-tol <= end[0] <= 1+tol) and \
                (-tol <= end[1] <= 1+tol) and \
                (-tol <= end[2] <= 1+tol):
-                #cell["edges"][bond_label]["frac_coords"].append((start, end))
-                #"""
                 try:
                     cell["edges"][bond_label]["frac_coords"].append((start, end))
                 except:

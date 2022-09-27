@@ -67,7 +67,7 @@ def test_cohp_plot_cell():
         spindown_cohps = cohp_data["COHP"]["-1"]
         energies = cohp_data["energies"]
         fermi_energy = cohp_data["efermi"]
-        x_true = [spinup_cohps[j] + spindown_cohps[j] for j, _ in enumerate(spinup_cohps)]
+        x_true = [-(spinup_cohps[j] + spindown_cohps[j]) for j, _ in enumerate(spinup_cohps)]
         y_true = [energies[j] - fermi_energy for j, _ in enumerate(energies)]
         
         x_test = edge["cohp_plot"][0]
@@ -105,7 +105,7 @@ def test_cohp_plot_supercell():
         spindown_cohps = cohp_data["COHP"]["-1"]
         energies = cohp_data["energies"]
         fermi_energy = cohp_data["efermi"]
-        x_true = [spinup_cohps[j] + spindown_cohps[j] for j, _ in enumerate(spinup_cohps)]
+        x_true = [-(spinup_cohps[j] + spindown_cohps[j]) for j, _ in enumerate(spinup_cohps)]
         y_true = [energies[j] - fermi_energy for j, _ in enumerate(energies)]
 
         x_test = edge["cohp_plot"][0]
