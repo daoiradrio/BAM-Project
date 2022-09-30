@@ -30,6 +30,7 @@ def get_coord_transformation_matrix(
     x = np.array([a, 0, 0])
     y = np.array([b * np.cos(gamma), b * np.sin(gamma), 0])
     z = np.array([c * np.cos(beta), c * np.cos(alpha), c * np.sin(gamma)])
+    # https://en.wikipedia.org/wiki/Fractional_coordinates
     #z = np.array(
     #    [
     #        c * np.cos(beta),
@@ -53,7 +54,7 @@ def get_cell_axes(
         beta = np.deg2rad(beta)
         gamma = np.deg2rad(gamma)
 
-    #***
+    # https://en.wikipedia.org/wiki/Fractional_coordinates
     #a_vec = np.array([a, 0, 0])
     #b_vec = np.array([0, b, 0])
     #c_vec = np.array([0, 0, c])
@@ -67,7 +68,6 @@ def get_cell_axes(
     #        spat / (a * b * np.sin(gamma))
     #    ]
     #)
-    #***
 
     origin = np.array([0, 0, 0])
     # cartesian x-axis
@@ -378,7 +378,16 @@ def get_extended_primitive_supercell(cell: dict, vecs: list, frac_to_cart_matrix
 
 
 
-def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp, vecs: list = None) -> go.Figure:
+def get_structure_plot(
+        path_to_poscar: str,
+        path_to_charge: str,
+        path_to_icobilist: str,
+        path_to_icooplist: str,
+        path_to_icohplist: str,
+        path_to_cohpcar: str,
+        path_to_madelung: str,
+        vecs: list = None
+) -> go.Figure:
     """
     Creation of an interactive 3D plot of a compound's primitive supercell, containing information about site and
     bond properties.
@@ -389,6 +398,23 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp, vecs: li
     """
 
     # initialization block
+    lobstergraph = LobsterGraph(
+        path_to_poscar=path_to_poscar,
+        path_to_charge=path_to_charge,
+        path_to_icobilist=path_to_icobilist,
+        path_to_icooplist=path_to_icooplist,
+        path_to_icohplist=path_to_icohplist,
+        path_to_cohpcar=path_to_cohpcar,
+        path_to_madelung=path_to_madelung,
+        which_bonds="all",
+        # start=-2,
+        add_additional_data_sg=True
+    )
+
+    completecohp = CompleteCohp.from_file(
+        fmt="LOBSTER", filename=path_to_cohpcar, structure_file=path_to_poscar
+    )
+
     atom_number = []
 
     node_x = []
@@ -533,7 +559,7 @@ def create_plot(lobstergraph: LobsterGraph, completecohp: CompleteCohp, vecs: li
     return fig
 
 
-# TODO !
+# TODO
 def create_graph_plot(lobstergraph: LobsterGraph):
     atom_number = []
 
@@ -541,9 +567,25 @@ def create_graph_plot(lobstergraph: LobsterGraph):
     node_y = []
     node_z = []
 
-    frac_coords = lobstergraph.sg.structure.frac_coords
-    for i, _ in enumerate(frac_coords):
+    edge_x = []
+    edge_y = []
+    edge_z = []
+
+    frac_coords = []
+    for i, _ in enumerate(lobstergraph.sg.structure.frac_coords):
+        new_frac_coord = [(-1)**i * i, 0, 0]
+        frac_coords.append(new_frac_coord)
         atom_number.append(lobstergraph.sg.structure[i].specie.number)
+
+    edges = []
+    for i, (node1, node2, _) in enumerate(lobstergraph.sg.graph.edges.data()):
+        start = frac_coords[node1][0]
+        stop = frac_coords[node2][0]
+        mid = 0.5 * (stop - start)
+        x = np.linspace(start, stop)
+        y = (x - (start+mid))**2 - mid**2
+        z = [0] * len(x)
+        edges.append((x, y, z))
 
     # layout of plot axes
     axis = dict(
@@ -577,11 +619,11 @@ def create_graph_plot(lobstergraph: LobsterGraph):
 
     fig = go.Figure(layout=layout)
 
-    for coord in frac_coords:
-        node_x.append(coord[0])
-        node_y.append(coord[1])
-        node_z.append(coord[2])
-        atom_number.append(1)
+    for frac_coord, number in zip(frac_coords, atom_number):
+        node_x.append(frac_coord[0])
+        node_y.append(frac_coord[1])
+        node_z.append(frac_coord[2])
+        atom_number.append(number)
     node_trace = go.Scatter3d(
         x=node_x,
         y=node_y,
@@ -598,47 +640,42 @@ def create_graph_plot(lobstergraph: LobsterGraph):
     )
     fig.add_trace(node_trace)
 
-    #vec = 0.5 * (frac_coords[1] - frac_coords[0])
-    #vec = frac_coords[0] + vec
-    #vec = vec + np.array([0.25, 0.25, 0])
-    fig.add_trace(
-        go.Scatter3d(
+    #edge_trace = go.Scatter3d(
+    #    x=[-5, 5, None],
+    #    y=[0, 0, None],
+    #    z=[0, 0, None],
+    #    mode="lines",
+    #    customdata=None,
+    #    hoverinfo="none",
+    #    line=dict(color="black", width=2),
+    #)
 
-        )
+    for edge in edges:
+        n = len(edge)
+        for i in range(1, n):
+            start = edge[i-1]
+            end = edge[i]
+            edge_x += [start[0], end[0], None]
+            edge_y += [start[1], end[1], None]
+            edge_z += [start[2], end[2], None]
+    edge_trace = go.Scatter3d(
+        x=edge_x,
+        y=edge_y,
+        z=edge_z,
+        mode="lines",
+        customdata=None,
+        hoverinfo="none",
+        line=dict(color="black", width=2),
     )
+    fig.add_trace(edge_trace)
+
+    #fig.add_trace(
+    #    go.Scatter3d(
+
+    #    )
+    #)
 
     fig.show()
-
-
-
-def get_structure_plot(
-        path_to_poscar: str,
-        path_to_charge: str,
-        path_to_icobilist: str,
-        path_to_icooplist: str,
-        path_to_icohplist: str,
-        path_to_cohpcar: str,
-        path_to_madelung: str,
-        vecs: list = None
-):
-    lobstergraph = LobsterGraph(
-        path_to_poscar=path_to_poscar,
-        path_to_charge=path_to_charge,
-        path_to_icobilist=path_to_icobilist,
-        path_to_icooplist=path_to_icooplist,
-        path_to_icohplist=path_to_icohplist,
-        path_to_cohpcar=path_to_cohpcar,
-        path_to_madelung=path_to_madelung,
-        which_bonds="all",
-        # start=-2,
-        add_additional_data_sg=True
-    )
-
-    completecohp = CompleteCohp.from_file(
-        fmt="LOBSTER", filename=path_to_cohpcar, structure_file=path_to_poscar
-    )
-
-    return create_plot(lobstergraph, completecohp, vecs)
 
 
 

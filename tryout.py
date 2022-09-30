@@ -11,8 +11,8 @@ warnings.filterwarnings(action='ignore')
 
 
 
-#dir = "mp-10143/"
-dir = "mp-510401"
+dir = "mp-10143/"
+#dir = "mp-510401"
 #dir = "mp-2384"
 
 path = os.path.join(os.path.expanduser("~/automationresults"), dir)
@@ -45,7 +45,4 @@ completecohp = CompleteCohp.from_file(
 )
 #"""
 
-print(lobstergraph.sg.structure.frac_coords)
-frac_coords = lobstergraph.sg.structure.frac_coords
-for node1, node2, data in lobstergraph.sg.graph.edges.data():
-    print(node1, node2, data["to_jimage"], frac_coords[node2] + data["to_jimage"])
+create_graph_plot(lobstergraph)
