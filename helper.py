@@ -17,6 +17,19 @@ def get_coord_transformation_matrix(
     a: float, b: float, c: float,
     alpha: float, beta: float, gamma: float, is_rad: bool = False
 ) -> np.array:
+    """
+    function to get matrix which converts fractional to cartesian coordinates in a given crystal system
+
+    :param a:
+    :param b:
+    :param c:
+    :param alpha:
+    :param beta:
+    :param gamma:
+    :param is_rad: True if the angles are in radians, False if in degree (default: False)
+    :return: transformation matrix as numpy array
+    """
+
     if not is_rad:
         alpha = np.deg2rad(alpha)
         beta = np.deg2rad(beta)
@@ -25,12 +38,12 @@ def get_coord_transformation_matrix(
     a_vec = np.array([a, 0, 0])
     b_vec = np.array([0, b, 0])
     c_vec = np.array([0, 0, c])
-    spat = np.dot(a_vec, np.cross(b_vec, c_vec))
 
     x = np.array([a, 0, 0])
     y = np.array([b * np.cos(gamma), b * np.sin(gamma), 0])
     z = np.array([c * np.cos(beta), c * np.cos(alpha), c * np.sin(gamma)])
     # https://en.wikipedia.org/wiki/Fractional_coordinates
+    # spat = np.dot(a_vec, np.cross(b_vec, c_vec))
     #z = np.array(
     #    [
     #        c * np.cos(beta),
@@ -138,6 +151,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
         # nodes/coordinates (due to translational symmetry) will be created
         indices0 = []
         indices1 = []
+        # check the comparison
         for j, c in enumerate(frac_coord):
             if c < 0.01:
                 indices0.append(j)
@@ -212,6 +226,7 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
             if (-tol <= end[0] <= 1+tol) and \
                (-tol <= end[1] <= 1+tol) and \
                (-tol <= end[2] <= 1+tol):
+                # if statement more elegant !
                 try:
                     cell["edges"][bond_label]["frac_coords"].append((start, end))
                 except:
@@ -224,7 +239,6 @@ def get_primitive_cell(lobstergraph: LobsterGraph, completecohp: CompleteCohp) -
                         "icohp": data["ICOHP"],
                         "icohp_bonding_perc": data["ICOHP_bonding_perc"]
                     }
-                #"""
 
     return cell
 
@@ -411,6 +425,7 @@ def get_structure_plot(
         add_additional_data_sg=True
     )
 
+    # already included in lobstergraph !
     completecohp = CompleteCohp.from_file(
         fmt="LOBSTER", filename=path_to_cohpcar, structure_file=path_to_poscar
     )
@@ -432,11 +447,13 @@ def get_structure_plot(
     alpha = lobstergraph.sg.structure.lattice.alpha
     beta = lobstergraph.sg.structure.lattice.beta
     gamma = lobstergraph.sg.structure.lattice.gamma
+    # use function from pymatgen !
     frac_to_cart_matrix = get_coord_transformation_matrix(a, b, c, alpha, beta, gamma)
 
     # build primitive cell
     cell = get_primitive_cell(lobstergraph, completecohp)
 
+    # use function from pymatgen !
     # add cell axes to primitive cell
     cell["axes"] = get_cell_axes(a, b, c, alpha, beta, gamma)
 

@@ -182,7 +182,8 @@ def edge_hoverevent(hover_data):
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(visible=False),
-        yaxis=dict(visible=False)
+        yaxis=dict(visible=False),
+        # fig.update_layout(scene_camera=last_camera_position) # maybe prevents "jumping" of the plot !
     )
 
     cohp = go.Figure(layout=layout)
